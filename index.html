@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Arch Wizards Duel</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- TITLE -->
+  <div class="screen active" data-screen="title">
+    <div class="title-bg"></div>
+    <div class="rune-glow">🧙</div>
+    <h1 class="game-title">Arch Wizards<br>Duel</h1>
+    <p class="game-sub">★ Explore · Prepare · Cast · Conquer ★</p>
+    <button class="btn" id="btn-newgame">⚔ Begin Journey</button>
+    <button class="btn btn-alt" id="btn-ponder">🔮 Practice Mode</button>
+    <p class="hint-text">Walk the world · Challenge wizards · Master the glyph keyboard</p>
+  </div>
+
+  <!-- CHARACTER CREATE -->
+  <div class="screen" data-screen="create">
+    <h2 class="screen-heading">Name Your Wizard</h2>
+    <p class="screen-sub">Explore the world and challenge the four arch-wizards</p>
+    <input type="text" id="wizard-name" class="name-input" placeholder="Your name..." maxlength="18" autocomplete="off">
+    <div id="starter-spell-list" class="starter-spells"></div>
+    <button class="btn" id="btn-start-journey">Begin ✦</button>
+    <button class="btn btn-alt" id="btn-create-back">← Back</button>
+  </div>
+
+  <!-- WORLD MAP -->
+  <div class="screen screen-fill" data-screen="world">
+    <canvas id="world-canvas"></canvas>
+    <div id="world-hud" class="world-hud">
+      <div class="whud-l">
+        <div class="whud-name" id="whud-pname">Archmage</div>
+        <div class="mini-bars">
+          <div class="mini-track"><div class="mini-fill hp-fill" id="w-hpbar"></div></div>
+          <div class="mini-track"><div class="mini-fill mana-fill" id="w-manabar"></div></div>
+        </div>
+      </div>
+      <div class="whud-r" id="whud-loc">The World</div>
+    </div>
+    <div id="world-msg" class="world-msg"></div>
+    <div class="dpad" id="world-dpad">
+      <div class="dpad-inner">
+        <button class="dpbtn" data-dir="n">▲</button>
+        <div class="dpad-row">
+          <button class="dpbtn" data-dir="w">◀</button>
+          <div class="dpad-c"></div>
+          <button class="dpbtn" data-dir="e">▶</button>
+        </div>
+        <button class="dpbtn" data-dir="s">▼</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTINGENCY PREP -->
+  <div class="screen" data-screen="prep">
+    <div id="prep-foe-banner" class="foe-banner"></div>
+    <h2 class="screen-heading">Prepare Defences</h2>
+    <p class="screen-sub">Lay contingency layers · The enemy breaks through them first</p>
+    <div class="prep-budget-row">
+      <span>Prep budget: </span><span id="prep-budget" class="budget-val">6</span><span> pts remaining</span>
+    </div>
+    <div class="prep-panel">
+      <div class="prep-panel-label">Your layers (outermost → inner):</div>
+      <div id="prep-slots" class="prep-slots"></div>
+    </div>
+    <div id="prep-options" class="prep-options"></div>
+    <button class="btn" id="btn-enter-duel">⚔ Enter Duel</button>
+    <button class="btn btn-alt" id="btn-prep-retreat">← Retreat</button>
+  </div>
+
+  <!-- DUEL -->
+  <div class="screen screen-fill" data-screen="duel">
+    <div id="duel-hud" class="duel-hud">
+      <div class="dhud-side">
+        <div class="dhud-name" id="dh-pname">You</div>
+        <div class="bar-track"><div class="bar-fill hp-fill" id="dh-php"></div></div>
+        <div class="bar-track"><div class="bar-fill mana-fill" id="dh-pmana"></div></div>
+        <div class="dhud-conts" id="dh-pcont"></div>
+      </div>
+      <div class="dhud-center">
+        <div id="dh-round">Round 1</div>
+        <div id="dh-turn" class="turn-lbl">Your Turn</div>
+      </div>
+      <div class="dhud-side dhud-right">
+        <div class="dhud-name" id="dh-ename">Enemy</div>
+        <div class="bar-track"><div class="bar-fill hp-fill" id="dh-ehp"></div></div>
+        <div class="bar-track"><div class="bar-fill mana-fill" id="dh-emana"></div></div>
+        <div class="dhud-conts" id="dh-econt"></div>
+      </div>
+    </div>
+    <canvas id="duel-canvas"></canvas>
+    <div id="duel-log" class="duel-log"></div>
+    <div id="glyph-keyboard" class="glyph-kb">
+      <div id="glyph-tabs" class="glyph-tabs"></div>
+      <div id="glyph-grid" class="glyph-grid"></div>
+      <div id="glyph-seq" class="glyph-seq"></div>
+      <div class="glyph-actions">
+        <button class="gchan-btn" id="btn-channel">✨ Channel</button>
+        <button class="gclear-btn" id="btn-clear">✕ Clear</button>
+        <button class="gterm-btn" id="btn-cast">★ Cast</button>
+      </div>
+      <div id="glyph-timer-wrap" class="timer-wrap"><div id="glyph-timer" class="timer-fill"></div></div>
+      <div id="glyph-hint" class="glyph-hint">Your turn — select glyphs then ★ Cast</div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="screen" data-screen="result">
+    <div id="res-icon" class="res-icon">🏆</div>
+    <h2 id="res-title" class="res-title">Victory!</h2>
+    <p id="res-desc" class="res-desc"></p>
+    <div id="res-rewards" class="res-rewards"></div>
+    <button class="btn" id="btn-res-cont">Continue →</button>
+  </div>
+
+</div>
+<script src="js/engine.js"></script>
+</body>
+</html>
