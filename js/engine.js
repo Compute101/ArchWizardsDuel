@@ -126,7 +126,7 @@ const REGIONS = [
     seed: 1001,
     thresholds: [0.15, 0.22, 0.42, 0.52, 0.60, 0.72],
     tileColors: { 0:'#081820', 1:'#0e2d4a', 2:'#9ab8cc', 3:'#6a7e88', 4:'#0a2818', 5:'#c8dce8', 6:'#e0edf8' },
-    npcPos: { wx: 0.65, wy: 0.38 },
+    npcPos: { wx: 0.85, wy: 0.12 },
   },
   {
     id: 'wastes', name: "Malachar's Wastes", npcId: 'malachar',
@@ -134,7 +134,7 @@ const REGIONS = [
     seed: 2002,
     thresholds: [0.10, 0.16, 0.30, 0.70, 0.76, 0.86],
     tileColors: { 0:'#580e04', 1:'#8a2010', 2:'#3c1e12', 3:'#7c2e18', 4:'#231008', 5:'#3a2020', 6:'#888070' },
-    npcPos: { wx: 0.35, wy: 0.62 },
+    npcPos: { wx: 0.12, wy: 0.85 },
   },
   {
     id: 'glade', name: "Sylvara's Glade", npcId: 'sylvara',
@@ -142,7 +142,7 @@ const REGIONS = [
     seed: 3003,
     thresholds: [0.18, 0.26, 0.56, 0.60, 0.88, 0.95],
     tileColors: { 0:'#0e2030', 1:'#1e4460', 2:'#1a5a16', 3:'#3a3018', 4:'#082808', 5:'#304828', 6:'#c0d0b8' },
-    npcPos: { wx: 0.70, wy: 0.65 },
+    npcPos: { wx: 0.88, wy: 0.82 },
   },
   {
     id: 'sanctum', name: "Aurelia's Sanctum", npcId: 'aurelia',
@@ -150,7 +150,7 @@ const REGIONS = [
     seed: 4004,
     thresholds: [0.15, 0.22, 0.75, 0.85, 0.90, 0.95],
     tileColors: { 0:'#102030', 1:'#1e3c60', 2:'#4a6218', 3:'#887840', 4:'#1a3e10', 5:'#7a7060', 6:'#e0dcc8' },
-    npcPos: { wx: 0.50, wy: 0.35 },
+    npcPos: { wx: 0.12, wy: 0.12 },
   },
 ];
 const REGION_MAP = {};
@@ -184,6 +184,55 @@ function smoothNoise(x, y, sc) {
   return (a * (1 - xf) * (1 - yf) + b * xf * (1 - yf) + c * (1 - xf) * yf + d * xf * yf) / 0xffff;
 }
 
+// ── Path helpers (deterministic per region seed) ─────────────────────────
+
+function seededRNG(seed) {
+  let s = (seed ^ 0xdeadbeef) >>> 0;
+  return function() {
+    s = ((s * 1664525) + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+function carveHLine(x0, x1, y) {
+  const step = x0 <= x1 ? 1 : -1;
+  for (let x = x0; x !== x1 + step; x += step)
+    if (x >= 0 && x < MW && y >= 0 && y < MH)
+      worldTiles[y * MW + x] = T.GRASS;
+}
+
+function carveVLine(x, y0, y1) {
+  const step = y0 <= y1 ? 1 : -1;
+  for (let y = y0; y !== y1 + step; y += step)
+    if (x >= 0 && x < MW && y >= 0 && y < MH)
+      worldTiles[y * MW + x] = T.GRASS;
+}
+
+// Carves a winding L-segment path from (x0,y0) to (x1,y1) using several
+// perpendicular waypoints so the route snakes rather than runs straight.
+function carveWindingPath(x0, y0, x1, y1, rng) {
+  const NUM_WP = 4;
+  const lx = x1 - x0, ly = y1 - y0;
+  const len = Math.sqrt(lx * lx + ly * ly) || 1;
+  const px = -ly / len, py = lx / len; // unit perpendicular
+
+  const pts = [[x0, y0]];
+  for (let i = 1; i <= NUM_WP; i++) {
+    const t   = i / (NUM_WP + 1);
+    const dev = (rng() - 0.5) * 16;            // ±8 tiles perpendicular swing
+    const wx  = Math.round(x0 + lx * t + px * dev);
+    const wy  = Math.round(y0 + ly * t + py * dev);
+    pts.push([Math.max(2, Math.min(MW - 3, wx)), Math.max(2, Math.min(MH - 3, wy))]);
+  }
+  pts.push([x1, y1]);
+
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
+    if (rng() < 0.5) { carveHLine(ax, bx, ay); carveVLine(bx, ay, by); }
+    else              { carveVLine(ax, ay, by); carveHLine(ax, bx, by); }
+  }
+}
+
 function genWorld(region) {
   worldTiles = new Uint8Array(MW * MH);
   const seed = region ? region.seed : 0;
@@ -192,8 +241,8 @@ function genWorld(region) {
 
   for (let y = 0; y < MH; y++) {
     for (let x = 0; x < MW; x++) {
-      const sx = x + seed, sy = y + seed;
-      const h = smoothNoise(sx, sy, 10) * 0.55 + smoothNoise(sx, sy, 5) * 0.3 + smoothNoise(sx, sy, 2) * 0.15;
+      const nx = x + seed, ny = y + seed;
+      const h = smoothNoise(nx, ny, 10) * 0.55 + smoothNoise(nx, ny, 5) * 0.3 + smoothNoise(nx, ny, 2) * 0.15;
       let t;
       if      (h < th[0]) t = T.DEEP;
       else if (h < th[1]) t = T.WATER;
@@ -206,7 +255,16 @@ function genWorld(region) {
     }
   }
 
-  // Carve walkable clearing around only this region's NPC
+  // Player spawn: centre of map, guaranteed walkable
+  const sx = Math.round(MW * 0.45), sy = Math.round(MH * 0.5);
+  for (let dy = -2; dy <= 2; dy++)
+    for (let dx = -2; dx <= 2; dx++) {
+      const tx = sx + dx, ty = sy + dy;
+      if (tx >= 0 && tx < MW && ty >= 0 && ty < MH)
+        worldTiles[ty * MW + tx] = T.GRASS;
+    }
+
+  // Place this region's NPC, then carve a winding corridor from spawn to them
   if (region) {
     const npc = G.npcs.find(n => n.id === region.npcId);
     if (npc) {
@@ -218,17 +276,11 @@ function genWorld(region) {
           if (tx >= 0 && tx < MW && ty >= 0 && ty < MH)
             worldTiles[ty * MW + tx] = T.GRASS;
         }
+      // Carve winding path so the mage is always reachable from spawn
+      carveWindingPath(sx, sy, npc.mx, npc.my, seededRNG(region.seed));
     }
   }
 
-  // Player start: centre of map, guaranteed walkable
-  const sx = Math.round(MW * 0.45), sy = Math.round(MH * 0.5);
-  for (let dy = -2; dy <= 2; dy++)
-    for (let dx = -2; dx <= 2; dx++) {
-      const tx = sx + dx, ty = sy + dy;
-      if (tx >= 0 && tx < MW && ty >= 0 && ty < MH)
-        worldTiles[ty * MW + tx] = T.GRASS;
-    }
   return { sx, sy };
 }
 
@@ -335,10 +387,12 @@ function renderRegionPreview(canvas, region) {
   const th   = region.thresholds;
   const cols = region.tileColors;
 
+  // Build a temporary tile buffer matching genWorld's output
+  const buf = new Uint8Array(MW * MH);
   for (let y = 0; y < MH; y++) {
     for (let x = 0; x < MW; x++) {
-      const sx = x + seed, sy = y + seed;
-      const h = smoothNoise(sx, sy, 10) * 0.55 + smoothNoise(sx, sy, 5) * 0.3 + smoothNoise(sx, sy, 2) * 0.15;
+      const nx = x + seed, ny = y + seed;
+      const h = smoothNoise(nx, ny, 10) * 0.55 + smoothNoise(nx, ny, 5) * 0.3 + smoothNoise(nx, ny, 2) * 0.15;
       let t;
       if      (h < th[0]) t = T.DEEP;
       else if (h < th[1]) t = T.WATER;
@@ -347,15 +401,38 @@ function renderRegionPreview(canvas, region) {
       else if (h < th[4]) t = T.TREE;
       else if (h < th[5]) t = T.MOUNTAIN;
       else                t = T.SNOW;
-      ctx.fillStyle = cols[t] || '#111';
-      ctx.fillRect(x, y, 1, 1);
+      buf[y * MW + x] = t;
     }
   }
 
-  // Mage location dot
+  // Apply clearings and winding path into the buffer
+  const spX = Math.round(MW * 0.45), spY = Math.round(MH * 0.5);
+  const mx  = Math.round(region.npcPos.wx * (MW - 4) + 2);
+  const my  = Math.round(region.npcPos.wy * (MH - 4) + 2);
+  for (let dy = -2; dy <= 2; dy++)
+    for (let dx = -2; dx <= 2; dx++) {
+      const tx = spX + dx, ty = spY + dy;
+      if (tx >= 0 && tx < MW && ty >= 0 && ty < MH) buf[ty * MW + tx] = T.GRASS;
+    }
+  for (let dy = -3; dy <= 3; dy++)
+    for (let dx = -3; dx <= 3; dx++) {
+      const tx = mx + dx, ty = my + dy;
+      if (tx >= 0 && tx < MW && ty >= 0 && ty < MH) buf[ty * MW + tx] = T.GRASS;
+    }
+  const savedTiles = worldTiles;
+  worldTiles = buf;
+  carveWindingPath(spX, spY, mx, my, seededRNG(region.seed));
+  worldTiles = savedTiles;
+
+  // Render
+  for (let y = 0; y < MH; y++)
+    for (let x = 0; x < MW; x++) {
+      ctx.fillStyle = cols[buf[y * MW + x]] || '#111';
+      ctx.fillRect(x, y, 1, 1);
+    }
+
+  // Mage dot
   const npcDef = NPC_DEFS.find(n => n.id === region.npcId);
-  const mx = Math.round(region.npcPos.wx * (MW - 4) + 2);
-  const my = Math.round(region.npcPos.wy * (MH - 4) + 2);
   ctx.fillStyle = npcDef.col;
   ctx.shadowColor = npcDef.col;
   ctx.shadowBlur = 4;
@@ -363,6 +440,12 @@ function renderRegionPreview(canvas, region) {
   ctx.arc(mx, my, 3, 0, Math.PI * 2);
   ctx.fill();
   ctx.shadowBlur = 0;
+
+  // Spawn dot
+  ctx.fillStyle = '#f0cc6a';
+  ctx.beginPath();
+  ctx.arc(spX, spY, 2, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function travelToRegion(region) {
