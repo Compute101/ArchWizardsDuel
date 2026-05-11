@@ -637,6 +637,7 @@ function movePlayer() {
   G.player.tx = nx;
   G.player.ty = ny;
   updateWorldHUD();
+  checkEnemyEncounter();
   moveEnemies();
 }
 
