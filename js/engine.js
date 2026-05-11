@@ -132,7 +132,7 @@ const REGIONS = [
     id: 'wastes', name: "Malachar's Wastes", npcId: 'malachar',
     lore: 'Scorched wastelands where blood magic festers in the ash and cinder.',
     seed: 2002,
-    thresholds: [0.10, 0.16, 0.30, 0.70, 0.76, 0.86],
+    thresholds: [0.10, 0.16, 0.28, 0.52, 0.62, 0.78],
     tileColors: { 0:'#580e04', 1:'#8a2010', 2:'#3c1e12', 3:'#7c2e18', 4:'#231008', 5:'#3a2020', 6:'#888070' },
     npcPos: { wx: 0.12, wy: 0.85 },
   },
@@ -148,7 +148,7 @@ const REGIONS = [
     id: 'sanctum', name: "Aurelia's Sanctum", npcId: 'aurelia',
     lore: 'Rolling golden plains where the light of divinity warms every stone.',
     seed: 4004,
-    thresholds: [0.15, 0.22, 0.75, 0.85, 0.90, 0.95],
+    thresholds: [0.15, 0.22, 0.48, 0.62, 0.72, 0.88],
     tileColors: { 0:'#102030', 1:'#1e3c60', 2:'#4a6218', 3:'#887840', 4:'#1a3e10', 5:'#7a7060', 6:'#e0dcc8' },
     npcPos: { wx: 0.12, wy: 0.12 },
   },
@@ -158,7 +158,7 @@ REGIONS.forEach(r => { REGION_MAP[r.id] = r; });
 
 // ─── WORLD MAP ─────────────────────────────────────────────────────────
 
-const MW = 64, MH = 44, TPIX = 17;
+const MW = 96, MH = 66, TPIX = 17;
 const T = { DEEP:0, WATER:1, GRASS:2, DIRT:3, TREE:4, MOUNTAIN:5, SNOW:6 };
 const T_COLOR = {
   0:'#152840', 1:'#1a4870', 2:'#2a5418', 3:'#64502e',
@@ -184,7 +184,7 @@ function smoothNoise(x, y, sc) {
   return (a * (1 - xf) * (1 - yf) + b * xf * (1 - yf) + c * (1 - xf) * yf + d * xf * yf) / 0xffff;
 }
 
-// ── Path helpers (deterministic per region seed) ─────────────────────────
+// ── Path & maze helpers (deterministic per region seed) ──────────────────
 
 function seededRNG(seed) {
   let s = (seed ^ 0xdeadbeef) >>> 0;
@@ -208,18 +208,27 @@ function carveVLine(x, y0, y1) {
       worldTiles[y * MW + x] = T.GRASS;
 }
 
-// Carves a winding L-segment path from (x0,y0) to (x1,y1) using several
-// perpendicular waypoints so the route snakes rather than runs straight.
+function carveClearing(cx, cy, r) {
+  for (let dy = -r; dy <= r; dy++)
+    for (let dx = -r; dx <= r; dx++) {
+      const tx = cx + dx, ty = cy + dy;
+      if (tx >= 0 && tx < MW && ty >= 0 && ty < MH)
+        worldTiles[ty * MW + tx] = T.GRASS;
+    }
+}
+
+// Carves a single winding path via L-segments through perpendicular waypoints.
+// Returns the waypoint array so callers can branch off intermediate nodes.
 function carveWindingPath(x0, y0, x1, y1, rng) {
-  const NUM_WP = 4;
+  const NUM_WP = 5;
   const lx = x1 - x0, ly = y1 - y0;
   const len = Math.sqrt(lx * lx + ly * ly) || 1;
-  const px = -ly / len, py = lx / len; // unit perpendicular
+  const px = -ly / len, py = lx / len;
 
   const pts = [[x0, y0]];
   for (let i = 1; i <= NUM_WP; i++) {
     const t   = i / (NUM_WP + 1);
-    const dev = (rng() - 0.5) * 16;            // ±8 tiles perpendicular swing
+    const dev = (rng() - 0.5) * 24;   // ±12 tiles perpendicular swing
     const wx  = Math.round(x0 + lx * t + px * dev);
     const wy  = Math.round(y0 + ly * t + py * dev);
     pts.push([Math.max(2, Math.min(MW - 3, wx)), Math.max(2, Math.min(MH - 3, wy))]);
@@ -230,6 +239,35 @@ function carveWindingPath(x0, y0, x1, y1, rng) {
     const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
     if (rng() < 0.5) { carveHLine(ax, bx, ay); carveVLine(bx, ay, by); }
     else              { carveVLine(ax, ay, by); carveHLine(ax, bx, by); }
+  }
+  return pts;
+}
+
+// Builds the full region maze: a main winding path to the mage plus several
+// dead-end branches so the player has to explore rather than follow one route.
+function carveRegionMaze(spawnX, spawnY, mageX, mageY, rng) {
+  // ── Main path spawn → mage ──
+  const mainPts = carveWindingPath(spawnX, spawnY, mageX, mageY, rng);
+
+  // ── One branch from the middle of the main path ──
+  const mid = mainPts[Math.floor(mainPts.length / 2)];
+  let ex, ey, t = 0;
+  do {
+    ex = Math.round(4 + rng() * (MW - 8));
+    ey = Math.round(4 + rng() * (MH - 8));
+  } while (Math.abs(ex - mageX) + Math.abs(ey - mageY) < 22 && ++t < 15);
+  carveWindingPath(mid[0], mid[1], ex, ey, rng);
+  carveClearing(ex, ey, 2);
+
+  // ── Dead-end branches from spawn ──
+  for (let i = 0; i < 3; i++) {
+    t = 0;
+    do {
+      ex = Math.round(4 + rng() * (MW - 8));
+      ey = Math.round(4 + rng() * (MH - 8));
+    } while (Math.abs(ex - mageX) + Math.abs(ey - mageY) < 22 && ++t < 15);
+    carveWindingPath(spawnX, spawnY, ex, ey, rng);
+    carveClearing(ex, ey, 2);
   }
 }
 
@@ -276,8 +314,8 @@ function genWorld(region) {
           if (tx >= 0 && tx < MW && ty >= 0 && ty < MH)
             worldTiles[ty * MW + tx] = T.GRASS;
         }
-      // Carve winding path so the mage is always reachable from spawn
-      carveWindingPath(sx, sy, npc.mx, npc.my, seededRNG(region.seed));
+      // Carve branching maze so the mage is reachable but not obvious
+      carveRegionMaze(sx, sy, npc.mx, npc.my, seededRNG(region.seed));
     }
   }
 
@@ -421,7 +459,7 @@ function renderRegionPreview(canvas, region) {
     }
   const savedTiles = worldTiles;
   worldTiles = buf;
-  carveWindingPath(spX, spY, mx, my, seededRNG(region.seed));
+  carveRegionMaze(spX, spY, mx, my, seededRNG(region.seed));
   worldTiles = savedTiles;
 
   // Render
