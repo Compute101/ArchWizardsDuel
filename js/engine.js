@@ -160,6 +160,33 @@ const REGIONS = [
 const REGION_MAP = {};
 REGIONS.forEach(r => { REGION_MAP[r.id] = r; });
 
+// ─── ROAMING ENEMY DEFINITIONS ────────────────────────────────────────────
+// Weak enemies that patrol each region biome. Each knows either a basic
+// physical attack or a single elemental spell suited to the biome.
+
+const ROAMING_ENEMY_DEFS = {
+  reach: [ // Frozen arcane peaks — blue magic
+    { name:'Ice Wraith',      title:'Frozen Shade',    col:'#88ccff', hp:38, maxMana:8,  startMana:4, manaRegen:2, spellIds:['arcanebolt'],             affinityProfile:{blue:60} },
+    { name:'Frost Shard',     title:'Arcane Remnant',  col:'#aaddff', hp:32, maxMana:10, startMana:5, manaRegen:2, spellIds:['arcanebolt','tempshift'],  affinityProfile:{blue:50} },
+    { name:'Crystal Golem',   title:'Arcane Sentinel', col:'#66aaee', hp:44, maxMana:8,  startMana:4, manaRegen:2, spellIds:['arcanebolt'],             affinityProfile:{blue:60} },
+  ],
+  wastes: [ // Scorched wastelands — red blood magic
+    { name:'Ash Hound',       title:'Cinder Beast',    col:'#ff6644', hp:42, maxMana:8,  startMana:4, manaRegen:2, spellIds:['bloodsurge'],             affinityProfile:{red:60} },
+    { name:'Cinder Imp',      title:'Fire Spawn',      col:'#ff3311', hp:32, maxMana:10, startMana:5, manaRegen:2, spellIds:['bloodsurge','ignite'],     affinityProfile:{red:50} },
+    { name:'Blood Shade',     title:'Sanguine Wraith', col:'#cc2244', hp:40, maxMana:9,  startMana:4, manaRegen:2, spellIds:['bloodsurge','siphon'],    affinityProfile:{red:55} },
+  ],
+  glade: [ // Ancient forest — green nature magic
+    { name:'Vine Crawler',    title:'Root Horror',     col:'#55bb44', hp:40, maxMana:8,  startMana:4, manaRegen:2, spellIds:['thornwhip'],              affinityProfile:{green:60} },
+    { name:'Spore Pod',       title:'Fungal Horror',   col:'#88bb33', hp:32, maxMana:10, startMana:5, manaRegen:2, spellIds:['thornwhip','sporecloud'],  affinityProfile:{green:50} },
+    { name:'Forest Shade',    title:'Ancient Lurker',  col:'#336622', hp:44, maxMana:9,  startMana:4, manaRegen:2, spellIds:['thornwhip','entangle'],   affinityProfile:{green:55} },
+  ],
+  sanctum: [ // Golden plains — gold light magic
+    { name:'Stone Sentinel',  title:'Cursed Guardian', col:'#ddaa44', hp:44, maxMana:8,  startMana:4, manaRegen:2, spellIds:['smite'],                  affinityProfile:{gold:60} },
+    { name:'Radiant Wisp',    title:'Lost Light',      col:'#ffdd66', hp:32, maxMana:10, startMana:5, manaRegen:2, spellIds:['smite','illuminate'],      affinityProfile:{gold:50} },
+    { name:'Cursed Pilgrim',  title:'Fallen Seeker',   col:'#cc8822', hp:40, maxMana:9,  startMana:4, manaRegen:2, spellIds:['smite','wardspell'],      affinityProfile:{gold:55} },
+  ],
+};
+
 // ─── WORLD MAP ─────────────────────────────────────────────────────────
 
 const MW = 96, MH = 66, TPIX = 17;
@@ -343,6 +370,7 @@ function initGame() {
       tx: 0, ty: 0,
     },
     npcs: NPC_DEFS.map(d => Object.assign({}, d, { defeated: false })),
+    enemies: [],
     world: { moveDir: null },
     prep: null,
     activeNpc: null,
@@ -497,10 +525,45 @@ function travelToRegion(region) {
   const { sx, sy } = genWorld(region);
   G.player.tx = sx;
   G.player.ty = sy;
+  spawnRoamingEnemies(region);
   msgNpc = null;
   document.getElementById('world-msg').classList.remove('show');
   setScreen('world');
   startWorld();
+}
+
+function spawnRoamingEnemies(region) {
+  const defs = ROAMING_ENEMY_DEFS[region.id];
+  G.enemies = [];
+  if (!defs) return;
+
+  const rng = seededRNG(region.seed + 9999);
+  const px = G.player.tx, py = G.player.ty;
+
+  // Collect walkable tiles at least 10 steps from player spawn
+  const candidates = [];
+  for (let y = 0; y < MH; y++) {
+    for (let x = 0; x < MW; x++) {
+      if (T_WALK.has(worldTiles[y * MW + x])) {
+        if (Math.abs(x - px) + Math.abs(y - py) > 10) candidates.push([x, y]);
+      }
+    }
+  }
+
+  // Fisher-Yates shuffle with seeded RNG
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = candidates[i]; candidates[i] = candidates[j]; candidates[j] = tmp;
+  }
+
+  for (let i = 0; i < 12 && i < candidates.length; i++) {
+    const [tx, ty] = candidates[i];
+    const def = defs[Math.floor(rng() * defs.length)];
+    G.enemies.push(Object.assign({}, def, {
+      contIds: [], isRoamingEnemy: true,
+      tx, ty, alive: true,
+    }));
+  }
 }
 
 // ─── AFFINITY ───────────────────────────────────────────────────────────
@@ -541,6 +604,7 @@ function startWorld() {
   resizeWCan();
   updateWorldHUD();
   if (!G.worldTick) G.worldTick = setInterval(worldStep, 120);
+  encounterCooldown = 5; // brief grace period when entering the world
 }
 
 function stopWorld() {
@@ -558,6 +622,7 @@ function worldStep() {
   movePlayer();
   drawWorld();
   checkNpcProximity();
+  checkEnemyEncounter();
 }
 
 const DIR = { n:[0,-1], s:[0,1], w:[-1,0], e:[1,0] };
@@ -572,6 +637,69 @@ function movePlayer() {
   G.player.tx = nx;
   G.player.ty = ny;
   updateWorldHUD();
+  moveEnemies();
+}
+
+function moveEnemies() {
+  if (!G.enemies || !G.enemies.length) return;
+  const px = G.player.tx, py = G.player.ty;
+  const DIRS4 = [[0,-1],[0,1],[-1,0],[1,0]];
+
+  G.enemies.forEach(enemy => {
+    if (!enemy.alive) return;
+    const dx = px - enemy.tx, dy = py - enemy.ty;
+    const dist = Math.abs(dx) + Math.abs(dy);
+
+    let ordered;
+    if (dist <= 4 && dist > 0) {
+      // Chase: approach along the longer axis first
+      const preferred = [];
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        if (dx !== 0) preferred.push([Math.sign(dx), 0]);
+        if (dy !== 0) preferred.push([0, Math.sign(dy)]);
+      } else {
+        if (dy !== 0) preferred.push([0, Math.sign(dy)]);
+        if (dx !== 0) preferred.push([Math.sign(dx), 0]);
+      }
+      ordered = [...preferred, ...DIRS4.filter(d => !preferred.some(p => p[0]===d[0] && p[1]===d[1]))];
+    } else {
+      // Random patrol
+      ordered = [...DIRS4].sort(() => Math.random() - 0.5);
+    }
+
+    for (const [mdx, mdy] of ordered) {
+      const nx = enemy.tx + mdx, ny = enemy.ty + mdy;
+      if (nx >= 0 && nx < MW && ny >= 0 && ny < MH && T_WALK.has(worldTiles[ny * MW + nx])) {
+        enemy.tx = nx;
+        enemy.ty = ny;
+        break;
+      }
+    }
+  });
+}
+
+let encounterCooldown = 0;
+
+function checkEnemyEncounter() {
+  if (!G.enemies || G.screen !== 'world') return;
+  if (msgNpc) return; // don't interrupt arch-wizard dialog
+  if (encounterCooldown > 0) { encounterCooldown--; return; }
+
+  const px = G.player.tx, py = G.player.ty;
+  for (const enemy of G.enemies) {
+    if (!enemy.alive) continue;
+    if (enemy.tx === px && enemy.ty === py) {
+      beginRoamingBattle(enemy);
+      return;
+    }
+  }
+}
+
+function beginRoamingBattle(enemy) {
+  stopWorld();
+  G.activeNpc = enemy;
+  G.prep = { chosen: [] };
+  startDuel();
 }
 
 function drawWorld() {
@@ -636,6 +764,34 @@ function drawWorld() {
       wx.fillText(npc.name, px, py + 18);
       wx.globalAlpha = 1;
     }
+  }
+
+  // Roaming enemies
+  if (G.enemies) {
+    const now = Date.now();
+    G.enemies.forEach(enemy => {
+      if (!enemy.alive) return;
+      const epx = Math.round(enemy.tx * TPIX - camX + TPIX / 2);
+      const epy = Math.round(enemy.ty * TPIX - camY + HUD_H + TPIX / 2);
+      if (epx < -20 || epx > cw + 20 || epy < HUD_H - 20 || epy > ch + 20) return;
+
+      const dist = Math.abs(enemy.tx - G.player.tx) + Math.abs(enemy.ty - G.player.ty);
+      const aggro = dist <= 4;
+      wx.globalAlpha = aggro ? 0.6 + 0.4 * Math.sin(now / 180) : 0.85;
+      wx.fillStyle   = enemy.col;
+      wx.shadowColor = enemy.col;
+      wx.shadowBlur  = aggro ? 10 : 4;
+      // Diamond chevron shape
+      wx.beginPath();
+      wx.moveTo(epx,     epy - 6);
+      wx.lineTo(epx + 5, epy + 1);
+      wx.lineTo(epx,     epy - 1);
+      wx.lineTo(epx - 5, epy + 1);
+      wx.closePath();
+      wx.fill();
+      wx.shadowBlur  = 0;
+      wx.globalAlpha = 1;
+    });
   }
 
   // Player marker
@@ -827,7 +983,11 @@ function startDuel() {
   buildGlyphKeyboard();
   updateDuelHUD();
   setInputEnabled(true);
-  addLog('⚔ The duel begins! Build your spells with the glyph keyboard.');
+  if (G.activeNpc.isRoamingEnemy) {
+    addLog(`⚔ ${G.activeNpc.name} attacks! Defend yourself!`);
+  } else {
+    addLog('⚔ The duel begins! Build your spells with the glyph keyboard.');
+  }
 
   if (G.duelRaf) cancelAnimationFrame(G.duelRaf);
   G.duelRaf = requestAnimationFrame(duelFrame);
@@ -1418,6 +1578,31 @@ function endDuel(victory) {
   setInputEnabled(false);
   const npc = G.activeNpc;
 
+  if (npc.isRoamingEnemy) {
+    if (victory) {
+      npc.alive = false;
+      G.player.hp   = DS.player.hp;
+      G.player.mana = DS.player.mana;
+      document.getElementById('res-icon').textContent  = '⚔';
+      const titleEl = document.getElementById('res-title');
+      titleEl.textContent = 'Enemy Slain';
+      titleEl.style.color = '#44cc66';
+      document.getElementById('res-desc').textContent  = `The ${npc.name} has been defeated.`;
+      document.getElementById('res-rewards').textContent = 'Continue your journey.';
+    } else {
+      G.player.hp   = Math.max(30, Math.floor(G.player.maxHp * 0.5));
+      G.player.mana = G.player.manaRegen * 2;
+      document.getElementById('res-icon').textContent = '💀';
+      const titleEl = document.getElementById('res-title');
+      titleEl.textContent = 'Defeated';
+      titleEl.style.color = '#ff4466';
+      document.getElementById('res-desc').textContent  = `The ${npc.name} overpowers you. Recover and return.`;
+      document.getElementById('res-rewards').textContent = '';
+    }
+    setScreen('result');
+    return;
+  }
+
   if (victory) {
     npc.defeated = true;
     const newSpells = (npc.reward || []).filter(id => !G.player.spellIds.includes(id));
@@ -1609,7 +1794,7 @@ window.addEventListener('load', () => {
 
   // — Result
   document.getElementById('btn-res-cont').onclick = () => {
-    if (G.npcs.every(n => n.defeated)) {
+    if (!G.activeNpc?.isRoamingEnemy && G.npcs.every(n => n.defeated)) {
       document.getElementById('res-icon').textContent  = '\ud83d�';
       document.getElementById('res-title').textContent = 'Arch-Wizard!';
       document.getElementById('res-title').style.color = '';
