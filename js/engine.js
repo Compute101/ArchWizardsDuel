@@ -126,7 +126,8 @@ const REGIONS = [
     seed: 1001,
     thresholds: [0.15, 0.22, 0.42, 0.52, 0.60, 0.72],
     tileColors: { 0:'#081820', 1:'#0e2d4a', 2:'#9ab8cc', 3:'#6a7e88', 4:'#0a2818', 5:'#c8dce8', 6:'#e0edf8' },
-    npcPos: { wx: 0.85, wy: 0.12 },
+    npcPos:   { wx: 0.85, wy: 0.12 },  // NE corner
+    spawnPos: { wx: 0.10, wy: 0.88 },  // SW corner
   },
   {
     id: 'wastes', name: "Malachar's Wastes", npcId: 'malachar',
@@ -134,7 +135,8 @@ const REGIONS = [
     seed: 2002,
     thresholds: [0.10, 0.16, 0.28, 0.52, 0.62, 0.78],
     tileColors: { 0:'#580e04', 1:'#8a2010', 2:'#3c1e12', 3:'#7c2e18', 4:'#231008', 5:'#3a2020', 6:'#888070' },
-    npcPos: { wx: 0.12, wy: 0.85 },
+    npcPos:   { wx: 0.12, wy: 0.85 },  // SW corner
+    spawnPos: { wx: 0.88, wy: 0.10 },  // NE corner
   },
   {
     id: 'glade', name: "Sylvara's Glade", npcId: 'sylvara',
@@ -142,7 +144,8 @@ const REGIONS = [
     seed: 3003,
     thresholds: [0.18, 0.26, 0.56, 0.60, 0.88, 0.95],
     tileColors: { 0:'#0e2030', 1:'#1e4460', 2:'#1a5a16', 3:'#3a3018', 4:'#082808', 5:'#304828', 6:'#c0d0b8' },
-    npcPos: { wx: 0.88, wy: 0.82 },
+    npcPos:   { wx: 0.88, wy: 0.82 },  // SE corner
+    spawnPos: { wx: 0.10, wy: 0.12 },  // NW corner
   },
   {
     id: 'sanctum', name: "Aurelia's Sanctum", npcId: 'aurelia',
@@ -150,7 +153,8 @@ const REGIONS = [
     seed: 4004,
     thresholds: [0.15, 0.22, 0.48, 0.62, 0.72, 0.88],
     tileColors: { 0:'#102030', 1:'#1e3c60', 2:'#4a6218', 3:'#887840', 4:'#1a3e10', 5:'#7a7060', 6:'#e0dcc8' },
-    npcPos: { wx: 0.12, wy: 0.12 },
+    npcPos:   { wx: 0.12, wy: 0.12 },  // NW corner
+    spawnPos: { wx: 0.88, wy: 0.88 },  // SE corner
   },
 ];
 const REGION_MAP = {};
@@ -293,8 +297,9 @@ function genWorld(region) {
     }
   }
 
-  // Player spawn: centre of map, guaranteed walkable
-  const sx = Math.round(MW * 0.45), sy = Math.round(MH * 0.5);
+  // Player spawn: opposite corner from the mage, guaranteed walkable
+  const spR = region ? region.spawnPos : { wx: 0.45, wy: 0.5 };
+  const sx = Math.round(spR.wx * (MW - 4) + 2), sy = Math.round(spR.wy * (MH - 4) + 2);
   for (let dy = -2; dy <= 2; dy++)
     for (let dx = -2; dx <= 2; dx++) {
       const tx = sx + dx, ty = sy + dy;
@@ -443,8 +448,9 @@ function renderRegionPreview(canvas, region) {
     }
   }
 
-  // Apply clearings and winding path into the buffer
-  const spX = Math.round(MW * 0.45), spY = Math.round(MH * 0.5);
+  // Apply clearings and maze into the buffer
+  const spX = Math.round(region.spawnPos.wx * (MW - 4) + 2);
+  const spY = Math.round(region.spawnPos.wy * (MH - 4) + 2);
   const mx  = Math.round(region.npcPos.wx * (MW - 4) + 2);
   const my  = Math.round(region.npcPos.wy * (MH - 4) + 2);
   for (let dy = -2; dy <= 2; dy++)
