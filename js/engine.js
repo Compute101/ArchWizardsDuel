@@ -21,25 +21,25 @@ const TERM = '★'; // ★
 
 const SPELLS = [
   // Red / Blood
-  { id:'bloodsurge',   color:'red',   seq:[0,0],     name:'Bloodsurge',     mana:3, dmg:20, effect:null,                          icon:'🧨', desc:'Quick blood burst' },
-  { id:'hemorrhage',   color:'red',   seq:[0,1,0],   name:'Hemorrhage',     mana:6, dmg:28, effect:{type:'bleed',turns:2,dmg:8},  icon:'🔥', desc:'Bleed 8/turn × 2' },
-  { id:'siphon',       color:'red',   seq:[1,0,1],   name:'Siphon',         mana:5, dmg:12, effect:{type:'drain',amt:4},           icon:'🖥', desc:'Steal 4 enemy mana' },
-  { id:'ignite',       color:'red',   seq:[0,2,0],   name:'Ignite',         mana:7, dmg:22, effect:{type:'burn',turns:2,dmg:10},  icon:'🔥', desc:'Burn 10/turn × 2' },
+  { id:'bloodsurge',   color:'red',   seq:[0,0],     name:'Bloodsurge',     mana:3, dmg:20, dmgType:'Blood', effect:null,                          icon:'🧨', desc:'Quick blood burst' },
+  { id:'hemorrhage',   color:'red',   seq:[0,1,0],   name:'Hemorrhage',     mana:6, dmg:28, dmgType:'Blood', effect:{type:'bleed',turns:2,dmg:8},  icon:'🔥', desc:'Bleed 8/turn × 2' },
+  { id:'siphon',       color:'red',   seq:[1,0,1],   name:'Siphon',         mana:5, dmg:12, dmgType:'Blood', effect:{type:'drain',amt:4},           icon:'🖥', desc:'Steal 4 enemy mana' },
+  { id:'ignite',       color:'red',   seq:[0,2,0],   name:'Ignite',         mana:7, dmg:22, dmgType:'Fire',  effect:{type:'burn',turns:2,dmg:10},  icon:'🔥', desc:'Burn 10/turn × 2' },
   // Blue / Arcane
-  { id:'arcanebolt',   color:'blue',  seq:[0,0],     name:'Arcane Bolt',    mana:3, dmg:22, effect:null,                          icon:'⚡', desc:'Swift arcane strike' },
-  { id:'phasestrike',  color:'blue',  seq:[0,1,0],   name:'Phase Strike',   mana:6, dmg:30, effect:{type:'pierce'},                icon:'🔮', desc:'Bypasses all contingencies' },
-  { id:'manavoid',     color:'blue',  seq:[1,0,1],   name:'Mana Void',      mana:5, dmg:8,  effect:{type:'drain',amt:6},           icon:'⚙', desc:'Drain 6 enemy mana' },
-  { id:'tempshift',    color:'blue',  seq:[0,2,0],   name:'Temporal Shift', mana:8, dmg:0,  effect:{type:'freeze'},                icon:'⏳', desc:'Skip enemy\'s next turn' },
+  { id:'arcanebolt',   color:'blue',  seq:[0,0],     name:'Arcane Bolt',    mana:3, dmg:22, dmgType:'Arcane', effect:null,                          icon:'⚡', desc:'Swift arcane strike' },
+  { id:'phasestrike',  color:'blue',  seq:[0,1,0],   name:'Phase Strike',   mana:6, dmg:30, dmgType:'Arcane', effect:{type:'pierce'},                icon:'🔮', desc:'Bypasses all contingencies' },
+  { id:'manavoid',     color:'blue',  seq:[1,0,1],   name:'Mana Void',      mana:5, dmg:8, dmgType:'Arcane', effect:{type:'drain',amt:6},           icon:'⚙', desc:'Drain 6 enemy mana' },
+  { id:'tempshift',    color:'blue',  seq:[0,2,0],   name:'Temporal Shift', mana:8, dmg:0, dmgType:null,    effect:{type:'freeze'},                icon:'⏳', desc:'Skip enemy\'s next turn' },
   // Green / Nature
-  { id:'thornwhip',    color:'green', seq:[0,0],     name:'Thornwhip',      mana:3, dmg:18, effect:null,                          icon:'🌿', desc:'Nature lash' },
-  { id:'entangle',     color:'green', seq:[0,1,0],   name:'Entangle',       mana:5, dmg:14, effect:{type:'freeze'},                icon:'🌳', desc:'Root enemy 1 turn' },
-  { id:'sporecloud',   color:'green', seq:[1,0,1],   name:'Spore Cloud',    mana:5, dmg:8,  effect:{type:'burn',turns:2,dmg:8},   icon:'\ud83c�', desc:'Poison 8/turn × 2' },
-  { id:'regenerate',   color:'green', seq:[2,0,2],   name:'Regenerate',     mana:6, dmg:0,  effect:{type:'heal',amt:25},           icon:'💚', desc:'Restore 25 HP' },
+  { id:'thornwhip',    color:'green', seq:[0,0],     name:'Thornwhip',      mana:3, dmg:18, dmgType:'Physical', effect:null,                          icon:'🌿', desc:'Nature lash' },
+  { id:'entangle',     color:'green', seq:[0,1,0],   name:'Entangle',       mana:5, dmg:14, dmgType:'Physical', effect:{type:'freeze'},                icon:'🌳', desc:'Root enemy 1 turn' },
+  { id:'sporecloud',   color:'green', seq:[1,0,1],   name:'Spore Cloud',    mana:5, dmg:8, dmgType:'Poison', effect:{type:'burn',turns:2,dmg:8},   icon:'\ud83c�', desc:'Poison 8/turn × 2' },
+  { id:'regenerate',   color:'green', seq:[2,0,2],   name:'Regenerate',     mana:6, dmg:0, dmgType:null,    effect:{type:'heal',amt:25},           icon:'💚', desc:'Restore 25 HP' },
   // Gold / Light
-  { id:'smite',        color:'gold',  seq:[0,0],     name:'Smite',          mana:3, dmg:20, effect:null,                          icon:'☀', desc:'Holy strike' },
-  { id:'wardspell',    color:'gold',  seq:[0,1,0],   name:'Ward',           mana:6, dmg:0,  effect:{type:'ward',hp:28},            icon:'✨', desc:'Create 28 HP barrier' },
-  { id:'illuminate',   color:'gold',  seq:[1,0,1],   name:'Illuminate',     mana:4, dmg:14, effect:{type:'reveal'},                icon:'🔦', desc:'Show enemy spell names' },
-  { id:'divineshield', color:'gold',  seq:[0,2,0],   name:'Divine Shield',  mana:7, dmg:0,  effect:{type:'shield',absorb:0.75,hits:1}, icon:'🛡', desc:'Block 75% of next hit' },
+  { id:'smite',        color:'gold',  seq:[0,0],     name:'Smite',          mana:3, dmg:20, dmgType:'Radiant', effect:null,                          icon:'☀', desc:'Holy strike' },
+  { id:'wardspell',    color:'gold',  seq:[0,1,0],   name:'Ward',           mana:6, dmg:0, dmgType:null,    effect:{type:'ward',hp:28},            icon:'✨', desc:'Create 28 HP barrier' },
+  { id:'illuminate',   color:'gold',  seq:[1,0,1],   name:'Illuminate',     mana:4, dmg:14, dmgType:'Radiant', effect:{type:'reveal'},                icon:'🔦', desc:'Show enemy spell names' },
+  { id:'divineshield', color:'gold',  seq:[0,2,0],   name:'Divine Shield',  mana:7, dmg:0, dmgType:null,    effect:{type:'shield',absorb:0.75,hits:1}, icon:'🛡', desc:'Block 75% of next hit' },
 ];
 
 // Build lookup tables
@@ -1224,7 +1224,7 @@ function updateSeqDisplay() {
     const disc  = affinityDiscount(G.player.castHistory, matchId);
     const cost  = Math.max(0, spell.mana - disc);
     const col   = COLORS[spell.color].col;
-    hintEl.textContent = `${spell.name} · ${cost} mana${disc > 0 ? ` (affinity −${disc})` : ''} · Press ★`;
+    hintEl.textContent = `${spell.name} · ${cost} mana${disc > 0 ? ` (affinity −${disc})` : ''}${spell.dmgType ? ` · ${spell.dmgType}` : ''} · Press ★`;
     termEl.style.boxShadow = `0 0 18px ${col}`;
   } else {
     hintEl.textContent = seq.length > 0 ? 'Continue… or ★ to attempt cast' : 'Select glyphs then ★ Cast';
@@ -1339,7 +1339,7 @@ function resolveSpell(spell, atkKey, defKey) {
       if (!pierce && def.contingencies.length > 0) {
         hitContingency(def, spell.dmg, defX, ch);
       } else {
-        dealDamage(def, spell.dmg, defX, ch);
+        dealDamage(def, spell.dmg, defX, ch, spell.dmgType);
       }
     }
 
@@ -1425,11 +1425,11 @@ function hitContingency(def, dmg, defX, ch) {
   }
 }
 
-function dealDamage(def, dmg, defX, ch) {
+function dealDamage(def, dmg, defX, ch, dmgType) {
   def.hp = Math.max(0, def.hp - dmg);
   spawnParts(defX, ch * 0.55, '#ff4444');
   spawnFloat(defX, ch * 0.44, `-${dmg}`, '#ff6666');
-  addLog(`Hit for ${dmg} damage!`);
+  addLog(`Hit for ${dmg} ${dmgType ? dmgType + ' ' : ''}damage!`);
 }
 
 // ─── TURN MANAGEMENT ────────────────────────────────────────────────
@@ -1708,7 +1708,8 @@ function buildStarterUI() {
     card.innerHTML =
       `<span class="sc-icon">${s.icon}</span>` +
       `<span class="sc-name">${s.name}</span>` +
-      `<span class="sc-desc">${s.desc}</span>`;
+      `<span class="sc-desc">${s.desc}</span>` +
+      (s.dmgType ? `<span class="sc-dmgtype">${s.dmgType}</span>` : '');
     el.appendChild(card);
   });
 }

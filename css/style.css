@@ -172,6 +172,7 @@ body {
 .sc-icon { font-size: 20px; display: block; margin-bottom: 3px; }
 .sc-name { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
 .sc-desc { font-size: 8px; opacity: 0.6; margin-top: 3px; }
+.sc-dmgtype { display: inline-block; font-size: 7px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border: 1px solid currentColor; border-radius: 3px; padding: 1px 3px; margin-top: 4px; opacity: 0.8; }
 
 /* ── WORLD HUD ── */
 .world-hud {
