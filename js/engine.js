@@ -160,6 +160,68 @@ const REGIONS = [
 const REGION_MAP = {};
 REGIONS.forEach(r => { REGION_MAP[r.id] = r; });
 
+// ─── CASTLE DEFINITIONS ───────────────────────────────────────────────────
+
+const CASTLE_ROOM_DEFS = [
+  { id:'library',  name:'Library',          icon:'📚', hint:'Study spell sequences — but beware arcane failure.' },
+  { id:'training', name:'Training Room',     icon:'⚔',  hint:'Practice casting to reduce arcane failure on your spells.' },
+  { id:'kitchen',  name:'Kitchen',           icon:'🍖', hint:'A well-stocked larder. Rest and fully recover your health.' },
+  { id:'manawell', name:'Mana Well',         icon:'💧', hint:'A crystalline pool of arcane energy. Restore your mana here.' },
+  { id:'sleeping', name:'Sleeping Quarters', icon:'🛏', hint:'Eight furnished bedrooms. Rest to restore your stamina.' },
+  { id:'chapel',   name:'Chapel',            icon:'⛪', hint:'Receive a blessing that aids you in your next great battle.' },
+  { id:'treasure', name:'Treasure Room',     icon:'💎', hint:'A vault of magical artifacts. (Items not yet implemented.)' },
+];
+
+const REGION_THEME_COLOR = {
+  eldrin:'blue', malachar:'red', sylvara:'green', aurelia:'gold',
+};
+
+const CHAPEL_BUFFS = {
+  eldrin:   { name:'Arcane Clarity',  desc:'+3 mana at battle start',             type:'startMana', amt:3  },
+  malachar: { name:'Blood Surge',     desc:'+15 HP (temporary) for next battle',   type:'tempHp',    amt:15 },
+  sylvara:  { name:"Nature's Grace",  desc:'Begin next battle with Life Braid',    type:'lifebraid'       },
+  aurelia:  { name:'Divine Favour',   desc:'Begin next battle with a Minor Ward',  type:'ward_sm'         },
+};
+
+const CASTLE_APPRENTICE_DEFS = {
+  eldrin: {
+    library:  { name:'Glacial Scribe',   title:'Library Keeper',    col:'#88ccff', hp:52, maxMana:10, startMana:5, manaRegen:2, spellIds:['arcanebolt','manavoid'],    affinityProfile:{blue:40}, contIds:['ward_sm'] },
+    training: { name:'Rune Striker',     title:'Combat Instructor', col:'#4488ff', hp:60, maxMana:10, startMana:5, manaRegen:2, spellIds:['arcanebolt','phasestrike'], affinityProfile:{blue:40}, contIds:['ward_sm'] },
+    kitchen:  { name:'Frost Cook',       title:'Mess Steward',      col:'#aaddff', hp:48, maxMana:8,  startMana:4, manaRegen:2, spellIds:['arcanebolt'],               affinityProfile:{blue:50}, contIds:[] },
+    manawell: { name:'Well Tender',      title:'Mana Keeper',       col:'#66aaee', hp:54, maxMana:12, startMana:6, manaRegen:3, spellIds:['arcanebolt','manavoid'],    affinityProfile:{blue:45}, contIds:[] },
+    sleeping: { name:'Dream Warden',     title:'Sleep Guardian',    col:'#4499dd', hp:50, maxMana:9,  startMana:5, manaRegen:2, spellIds:['arcanebolt','tempshift'],   affinityProfile:{blue:40}, contIds:['ward_sm'] },
+    chapel:   { name:'Rime Acolyte',     title:'Shrine Keeper',     col:'#aaeeff', hp:50, maxMana:10, startMana:5, manaRegen:2, spellIds:['arcanebolt','smite'],       affinityProfile:{blue:30,gold:20}, contIds:['ward_sm'] },
+    treasure: { name:'Vault Sentinel',   title:'Treasure Guard',    col:'#5599cc', hp:58, maxMana:10, startMana:5, manaRegen:2, spellIds:['phasestrike','arcanebolt'], affinityProfile:{blue:40}, contIds:['ward_lg'] },
+  },
+  malachar: {
+    library:  { name:'Ink Witch',        title:'Tome Keeper',       col:'#ff6644', hp:52, maxMana:10, startMana:5, manaRegen:2, spellIds:['bloodsurge','siphon'],      affinityProfile:{red:40}, contIds:[] },
+    training: { name:'Scar Knight',      title:'Combat Master',     col:'#cc2244', hp:60, maxMana:10, startMana:5, manaRegen:2, spellIds:['bloodsurge','hemorrhage'],   affinityProfile:{red:40}, contIds:['mirror'] },
+    kitchen:  { name:'Ash Chef',         title:'Mess Warden',       col:'#ff4422', hp:48, maxMana:8,  startMana:4, manaRegen:2, spellIds:['bloodsurge'],               affinityProfile:{red:50}, contIds:[] },
+    manawell: { name:'Vein Tender',      title:'Mana Harvester',    col:'#ee3333', hp:54, maxMana:12, startMana:6, manaRegen:3, spellIds:['bloodsurge','siphon'],      affinityProfile:{red:45}, contIds:[] },
+    sleeping: { name:'Dusk Warden',      title:'Dream Guard',       col:'#cc3322', hp:50, maxMana:9,  startMana:5, manaRegen:2, spellIds:['siphon','bloodsurge'],      affinityProfile:{red:40}, contIds:[] },
+    chapel:   { name:'Cinder Priest',    title:'Shrine Tender',     col:'#ff5533', hp:50, maxMana:10, startMana:5, manaRegen:2, spellIds:['bloodsurge','ignite'],      affinityProfile:{red:45}, contIds:['ward_sm'] },
+    treasure: { name:'Hoard Brute',      title:'Vault Keeper',      col:'#dd2211', hp:58, maxMana:10, startMana:5, manaRegen:2, spellIds:['hemorrhage','bloodsurge'],   affinityProfile:{red:50}, contIds:['ward_sm'] },
+  },
+  sylvara: {
+    library:  { name:'Root Scholar',     title:'Lore Keeper',       col:'#55bb44', hp:52, maxMana:10, startMana:5, manaRegen:2, spellIds:['thornwhip','sporecloud'],   affinityProfile:{green:40}, contIds:[] },
+    training: { name:'Briar Duelist',    title:'Trainer',           col:'#33aa55', hp:60, maxMana:10, startMana:5, manaRegen:2, spellIds:['thornwhip','entangle'],     affinityProfile:{green:40}, contIds:['ward_sm'] },
+    kitchen:  { name:'Mushroom Cook',    title:'Fey Chef',          col:'#88bb33', hp:48, maxMana:8,  startMana:4, manaRegen:2, spellIds:['thornwhip'],               affinityProfile:{green:50}, contIds:[] },
+    manawell: { name:'Dew Keeper',       title:'Well Tender',       col:'#44cc66', hp:54, maxMana:12, startMana:6, manaRegen:3, spellIds:['regenerate','thornwhip'],   affinityProfile:{green:45}, contIds:[] },
+    sleeping: { name:'Vine Dreamer',     title:'Sleep Warden',      col:'#336622', hp:50, maxMana:9,  startMana:5, manaRegen:2, spellIds:['entangle','thornwhip'],     affinityProfile:{green:40}, contIds:[] },
+    chapel:   { name:'Grove Acolyte',    title:'Shrine Tender',     col:'#55dd77', hp:50, maxMana:10, startMana:5, manaRegen:2, spellIds:['regenerate','sporecloud'],  affinityProfile:{green:45}, contIds:['ward_sm'] },
+    treasure: { name:'Petal Guard',      title:'Vault Warden',      col:'#338844', hp:58, maxMana:10, startMana:5, manaRegen:2, spellIds:['sporecloud','entangle'],    affinityProfile:{green:50}, contIds:['ward_sm'] },
+  },
+  aurelia: {
+    library:  { name:'Gilded Scribe',    title:'Lore Keeper',       col:'#ffdd66', hp:52, maxMana:10, startMana:5, manaRegen:2, spellIds:['smite','illuminate'],       affinityProfile:{gold:40}, contIds:['ward_sm'] },
+    training: { name:'Radiant Squire',   title:'Combat Trainer',    col:'#ddaa44', hp:60, maxMana:10, startMana:5, manaRegen:2, spellIds:['smite','wardspell'],        affinityProfile:{gold:40}, contIds:['ward_sm'] },
+    kitchen:  { name:'Sun Baker',        title:'Mess Keeper',       col:'#ffcc55', hp:48, maxMana:8,  startMana:4, manaRegen:2, spellIds:['smite'],                   affinityProfile:{gold:50}, contIds:[] },
+    manawell: { name:'Light Tender',     title:'Well Keeper',       col:'#ffbb33', hp:54, maxMana:12, startMana:6, manaRegen:3, spellIds:['smite','illuminate'],       affinityProfile:{gold:45}, contIds:[] },
+    sleeping: { name:'Dusk Pilgrim',     title:'Sleep Warden',      col:'#cc8822', hp:50, maxMana:9,  startMana:5, manaRegen:2, spellIds:['wardspell','smite'],        affinityProfile:{gold:40}, contIds:['ward_sm'] },
+    chapel:   { name:'Dawn Acolyte',     title:'Shrine Keeper',     col:'#ffee88', hp:50, maxMana:10, startMana:5, manaRegen:2, spellIds:['divineshield','smite'],     affinityProfile:{gold:45}, contIds:['ward_sm'] },
+    treasure: { name:'Gilded Sentinel',  title:'Vault Guardian',    col:'#ddbb44', hp:58, maxMana:10, startMana:5, manaRegen:2, spellIds:['wardspell','divineshield'], affinityProfile:{gold:50}, contIds:['ward_lg'] },
+  },
+};
+
 // ─── ROAMING ENEMY DEFINITIONS ────────────────────────────────────────────
 // Weak enemies that patrol each region biome. Each knows either a basic
 // physical attack or a single elemental spell suited to the biome.
@@ -365,11 +427,14 @@ function initGame() {
       name: 'Archmage',
       hp: 100, maxHp: 100,
       mana: 8, maxMana: 16, manaRegen: 3,
+      stamina: 100, maxStamina: 100,
       spellIds: [...STARTER_IDS],
       castHistory: [],
+      spellArcaneFailure: {},
+      chapelBuff: null,
       tx: 0, ty: 0,
     },
-    npcs: NPC_DEFS.map(d => Object.assign({}, d, { defeated: false })),
+    npcs: NPC_DEFS.map(d => Object.assign({}, d, { defeated: false, castle: null })),
     enemies: [],
     world: { moveDir: null },
     prep: null,
@@ -378,6 +443,7 @@ function initGame() {
     duelRaf: null,
     currentRegion: null,
     atlasFrom: 'create',
+    castleContext: null,
   };
 }
 
@@ -828,7 +894,7 @@ function updateWorldHUD() {
     const npc = G.npcs.find(n => n.id === G.currentRegion.npcId);
     if (npc && npc.mx !== undefined) {
       const d = Math.abs(npc.mx - G.player.tx) + Math.abs(npc.my - G.player.ty);
-      if (d <= 10) locText = `Near ${npc.name}'s Tower`;
+      if (d <= 10) locText = `Near ${npc.name}'s Castle`;
     }
   }
   document.getElementById('whud-loc').textContent = locText;
@@ -844,20 +910,413 @@ function checkNpcProximity() {
 
   const dx = Math.abs(npc.mx - G.player.tx);
   const dy = Math.abs(npc.my - G.player.ty);
-  if (dx <= 2 && dy <= 2 && !npc.defeated) {
+  if (dx <= 2 && dy <= 2) {
     if (msgNpc !== npc) {
       msgNpc = npc;
-      msgEl.innerHTML = `<b style="color:${npc.col}">${npc.name} — ${npc.title}</b>\n${npc.intro}\n<button class="world-msg-btn" id="btn-challenge">⚔ Challenge</button>`;
+      const subtitle = npc.defeated
+        ? `${npc.defeatMsg}`
+        : `The castle of ${npc.name} — ${npc.title}.`;
+      msgEl.innerHTML =
+        `<b style="color:${npc.col}">🏰 ${npc.name}'s Castle</b>\n${subtitle}\n` +
+        `<button class="world-msg-btn" id="btn-enter-castle">🏰 Enter Castle</button>`;
       msgEl.classList.add('show');
       setTimeout(() => {
-        const btn = document.getElementById('btn-challenge');
-        if (btn) btn.onclick = () => beginPrep(npc);
+        const btn = document.getElementById('btn-enter-castle');
+        if (btn) btn.onclick = () => openCastle(npc);
       }, 10);
     }
     return;
   }
   msgNpc = null;
   msgEl.classList.remove('show');
+}
+
+// ─── CASTLE EXPLORATION ───────────────────────────────────────────────────
+
+function initCastle(npc) {
+  const region = REGIONS.find(r => r.npcId === npc.id);
+  const seed = region ? region.seed : 12345;
+  const rng = seededRNG(seed * 7 + 13);
+
+  // Shuffle the 7 room types per castle seed
+  const roomTypes = CASTLE_ROOM_DEFS.map(r => r.id);
+  for (let i = roomTypes.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [roomTypes[i], roomTypes[j]] = [roomTypes[j], roomTypes[i]];
+  }
+
+  const appDefs = CASTLE_APPRENTICE_DEFS[npc.id] || {};
+
+  // Grid: [0]=Entry, [1-7]=shuffled rooms, [8]=Throne
+  npc.castle = {
+    grid: [
+      { id:'entry', name:'Entry Hall', icon:'🚪', isEntry: true },
+      ...roomTypes.map(type => {
+        const def = CASTLE_ROOM_DEFS.find(r => r.id === type);
+        const app = appDefs[type] || null;
+        return {
+          id: type, name: def.name, icon: def.icon, hint: def.hint,
+          apprenticeDefeated: false,
+          apprenticeDef: app ? Object.assign({}, app, { contIds: app.contIds || [] }) : null,
+        };
+      }),
+      { id:'throne', name:'Throne Room', icon:'👑', isThrone: true,
+        hint:'The seat of power. Defeat all apprentices to gain entry.' },
+    ],
+  };
+}
+
+function allApprenticesDefeated(npc) {
+  if (!npc.castle) return false;
+  return npc.castle.grid
+    .filter(r => r && !r.isEntry && !r.isThrone)
+    .every(r => r.apprenticeDefeated);
+}
+
+function openCastle(npc) {
+  if (!npc.castle) initCastle(npc);
+  G.castleContext = { npc };
+  G.activeNpc = null;
+  stopWorld();
+  renderCastle(npc);
+  setScreen('castle');
+}
+
+function renderCastle(npc) {
+  const titleEl = document.getElementById('castle-title');
+  titleEl.textContent = `${npc.name}'s Castle`;
+  titleEl.style.color = npc.col;
+
+  updateCastleHUD();
+
+  const grid = document.getElementById('castle-grid');
+  grid.innerHTML = '';
+
+  const allCleared = allApprenticesDefeated(npc);
+
+  npc.castle.grid.forEach(room => {
+    const cell = document.createElement('div');
+
+    if (room.isEntry) {
+      cell.className = 'castle-room castle-room-entry';
+      cell.innerHTML =
+        `<div class="cr-icon">${room.icon}</div>` +
+        `<div class="cr-name">${room.name}</div>`;
+    } else if (room.isThrone) {
+      if (npc.defeated) {
+        cell.className = 'castle-room castle-room-cleared';
+        cell.innerHTML =
+          `<div class="cr-icon">${room.icon}</div>` +
+          `<div class="cr-name">${room.name}</div>` +
+          `<div class="cr-state">✓</div>`;
+      } else if (allCleared) {
+        cell.className = 'castle-room castle-room-throne-open';
+        cell.innerHTML =
+          `<div class="cr-icon">${room.icon}</div>` +
+          `<div class="cr-name">${room.name}</div>` +
+          `<div class="cr-state">👑</div>`;
+      } else {
+        cell.className = 'castle-room castle-room-throne-locked';
+        cell.innerHTML =
+          `<div class="cr-icon">${room.icon}</div>` +
+          `<div class="cr-name">${room.name}</div>` +
+          `<div class="cr-state">🔒</div>`;
+      }
+    } else {
+      const cleared = room.apprenticeDefeated;
+      cell.className = 'castle-room ' + (cleared ? 'castle-room-cleared' : 'castle-room-locked');
+      cell.innerHTML =
+        `<div class="cr-icon">${room.icon}</div>` +
+        `<div class="cr-name">${room.name}</div>` +
+        `<div class="cr-state">${cleared ? '✓' : '⚔'}</div>`;
+    }
+
+    cell.onclick = () => showRoomPanel(room, npc, allCleared);
+    grid.appendChild(cell);
+  });
+
+  document.getElementById('castle-room-panel').classList.add('hidden');
+}
+
+function updateCastleHUD() {
+  const p = G.player;
+  document.getElementById('castle-hud-hp').style.width   = `${(p.hp   / p.maxHp)   * 100}%`;
+  document.getElementById('castle-hud-mana').style.width = `${(p.mana / p.maxMana) * 100}%`;
+  document.getElementById('castle-hud-hp-val').textContent   = `${p.hp}/${p.maxHp}`;
+  document.getElementById('castle-hud-mana-val').textContent = `${p.mana}/${p.maxMana}`;
+}
+
+function showRoomPanel(room, npc, allCleared) {
+  const panel = document.getElementById('castle-room-panel');
+  panel.classList.remove('hidden');
+  panel.innerHTML = '';
+
+  if (room.isEntry) {
+    panel.innerHTML =
+      `<div class="crp-title">${room.icon} ${room.name}</div>` +
+      `<div class="crp-desc">The castle gates stand open. Explore the rooms beyond and clear each one before facing the archmage.</div>`;
+    return;
+  }
+
+  if (room.isThrone) {
+    if (npc.defeated) {
+      panel.innerHTML =
+        `<div class="crp-title" style="color:${npc.col}">${room.icon} ${room.name}</div>` +
+        `<div class="crp-desc">${npc.name} has been vanquished. The throne stands empty and silent.</div>`;
+    } else if (allCleared) {
+      panel.innerHTML =
+        `<div class="crp-title" style="color:${npc.col}">${room.icon} ${room.name}</div>` +
+        `<div class="crp-desc">${npc.intro}</div>` +
+        `<button class="btn crp-btn" id="crp-arch-btn">⚔ Challenge ${npc.name}</button>`;
+      setTimeout(() => {
+        const btn = document.getElementById('crp-arch-btn');
+        if (btn) btn.onclick = () => beginPrep(npc);
+      }, 10);
+    } else {
+      const rem = npc.castle.grid.filter(r => r && !r.isEntry && !r.isThrone && !r.apprenticeDefeated).length;
+      panel.innerHTML =
+        `<div class="crp-title">${room.icon} ${room.name}</div>` +
+        `<div class="crp-desc">The Throne Room is sealed by ancient wards.<br>Defeat the ${rem} remaining apprentice${rem !== 1 ? 's' : ''} to break the seal.</div>`;
+    }
+    return;
+  }
+
+  // Normal room
+  if (!room.apprenticeDefeated) {
+    const app = room.apprenticeDef;
+    const guardName = app ? `${app.name} — ${app.title}` : 'Unknown Apprentice';
+    panel.innerHTML =
+      `<div class="crp-title">${room.icon} ${room.name}</div>` +
+      `<div class="crp-desc">${room.hint}</div>` +
+      `<div class="crp-guard">⚔ Guarded by <b>${guardName}</b></div>` +
+      `<button class="btn crp-btn" id="crp-app-btn">⚔ Challenge Apprentice</button>`;
+    setTimeout(() => {
+      const btn = document.getElementById('crp-app-btn');
+      if (btn) btn.onclick = () => beginApprenticeBattle(room, npc);
+    }, 10);
+  } else {
+    renderRoomInteraction(room, npc, panel);
+  }
+}
+
+function renderRoomInteraction(room, npc, panel) {
+  const themeColor = REGION_THEME_COLOR[npc.id];
+  const chapelBuff = CHAPEL_BUFFS[npc.id];
+
+  switch (room.id) {
+    case 'library': {
+      const themeSpells = SPELLS.filter(s => s.color === themeColor);
+      const col = COLORS[themeColor].col;
+      let html =
+        `<div class="crp-title">${room.icon} ${room.name}</div>` +
+        `<div class="crp-desc">Ancient tomes reveal ${COLORS[themeColor].name} glyph sequences.<br>Studied spells carry a <b style="color:#ff8866">40% arcane failure</b> risk — visit the Training Room to reduce it.</div>` +
+        `<div class="crp-spell-list">`;
+      themeSpells.forEach(s => {
+        const known    = G.player.spellIds.includes(s.id);
+        const failPct  = G.player.spellArcaneFailure[s.id];
+        const seqStr   = s.seq.map(i => COLORS[s.color].glyphs[i]).join(' ');
+        const statusTxt = failPct ? ` <span style="color:#ff8866">(${Math.round(failPct * 100)}% failure)</span>` : (known ? ' <span style="color:#44dd66">✓ Mastered</span>' : '');
+        const canStudy  = !known;
+        html +=
+          `<div class="crp-spell-row">` +
+          `<span class="crp-spell-icon">${s.icon}</span>` +
+          `<span class="crp-spell-info"><b>${s.name}</b>${statusTxt}<br>` +
+          `<span class="crp-spell-seq" style="color:${col}">${seqStr} ★</span></span>` +
+          `<button class="crp-spell-btn" data-spell="${s.id}" ${canStudy ? '' : 'disabled'}>${canStudy ? 'Study' : 'Known'}</button>` +
+          `</div>`;
+      });
+      html += '</div>';
+      panel.innerHTML = html;
+      panel.querySelectorAll('.crp-spell-btn:not([disabled])').forEach(btn => {
+        btn.onclick = () => studySpell(btn.dataset.spell, npc);
+      });
+      break;
+    }
+
+    case 'training': {
+      const failSpells = Object.entries(G.player.spellArcaneFailure)
+        .filter(([, v]) => v > 0)
+        .map(([id]) => id);
+      let html =
+        `<div class="crp-title">${room.icon} ${room.name}</div>` +
+        `<div class="crp-desc">Rehearse your glyph sequences. Each practice session reduces a spell's arcane failure chance by 20%.</div>`;
+      if (failSpells.length === 0) {
+        html += `<div class="crp-desc" style="opacity:0.45">No spells with arcane failure. Study in the Library first.</div>`;
+      } else {
+        html += `<div class="crp-spell-list">`;
+        failSpells.forEach(id => {
+          const s    = SPELL_MAP[id];
+          if (!s) return;
+          const fail = G.player.spellArcaneFailure[id];
+          const col  = COLORS[s.color].col;
+          html +=
+            `<div class="crp-spell-row">` +
+            `<span class="crp-spell-icon">${s.icon}</span>` +
+            `<span class="crp-spell-info"><b>${s.name}</b><br>` +
+            `<span style="color:#ff8866;font-size:9px">${Math.round(fail * 100)}% failure</span></span>` +
+            `<button class="crp-spell-btn" data-spell="${id}">Practice</button>` +
+            `</div>`;
+        });
+        html += '</div>';
+      }
+      panel.innerHTML = html;
+      panel.querySelectorAll('.crp-spell-btn').forEach(btn => {
+        btn.onclick = () => practiceSpell(btn.dataset.spell, npc);
+      });
+      break;
+    }
+
+    case 'kitchen': {
+      const missingHp = G.player.maxHp - G.player.hp;
+      panel.innerHTML =
+        `<div class="crp-title">${room.icon} ${room.name}</div>` +
+        `<div class="crp-desc">The larder is stocked with restorative food and drink. Rest here to recover fully.</div>` +
+        `<div class="crp-stat-row">HP: <b>${G.player.hp} / ${G.player.maxHp}</b>${missingHp > 0 ? ` (+${missingHp})` : ' — full'}</div>` +
+        `<button class="btn crp-btn" id="crp-kitchen-btn" ${missingHp <= 0 ? 'disabled' : ''}>🍖 Rest &amp; Eat</button>`;
+      setTimeout(() => {
+        const btn = document.getElementById('crp-kitchen-btn');
+        if (btn) btn.onclick = () => {
+          G.player.hp = G.player.maxHp;
+          updateCastleHUD();
+          renderRoomInteraction(room, npc, panel);
+        };
+      }, 10);
+      break;
+    }
+
+    case 'manawell': {
+      const missingMana = G.player.maxMana - G.player.mana;
+      panel.innerHTML =
+        `<div class="crp-title">${room.icon} ${room.name}</div>` +
+        `<div class="crp-desc">A crystalline pool thrums with concentrated arcane energy. Draw from it to restore your mana.</div>` +
+        `<div class="crp-stat-row">Mana: <b>${G.player.mana} / ${G.player.maxMana}</b>${missingMana > 0 ? ` (+${missingMana})` : ' — full'}</div>` +
+        `<button class="btn crp-btn" id="crp-mana-btn" ${missingMana <= 0 ? 'disabled' : ''}>💧 Draw Mana</button>`;
+      setTimeout(() => {
+        const btn = document.getElementById('crp-mana-btn');
+        if (btn) btn.onclick = () => {
+          G.player.mana = G.player.maxMana;
+          updateCastleHUD();
+          renderRoomInteraction(room, npc, panel);
+        };
+      }, 10);
+      break;
+    }
+
+    case 'sleeping': {
+      const missingSt = G.player.maxStamina - G.player.stamina;
+      panel.innerHTML =
+        `<div class="crp-title">${room.icon} ${room.name}</div>` +
+        `<div class="crp-desc">Eight furnished bedrooms for the castle staff. Take one for yourself and rest.</div>` +
+        `<div class="crp-stat-row">Stamina: <b>${G.player.stamina} / ${G.player.maxStamina}</b>${missingSt > 0 ? ` (+${missingSt})` : ' — full'}</div>` +
+        `<div class="crp-stat-row" style="opacity:0.38;font-size:9px">(Stamina system coming soon)</div>` +
+        `<button class="btn crp-btn" id="crp-sleep-btn" ${missingSt <= 0 ? 'disabled' : ''}>🛏 Rest</button>`;
+      setTimeout(() => {
+        const btn = document.getElementById('crp-sleep-btn');
+        if (btn) btn.onclick = () => {
+          G.player.stamina = G.player.maxStamina;
+          renderRoomInteraction(room, npc, panel);
+        };
+      }, 10);
+      break;
+    }
+
+    case 'chapel': {
+      const existing = G.player.chapelBuff;
+      let html =
+        `<div class="crp-title">${room.icon} ${room.name}</div>` +
+        `<div class="crp-desc">The shrine resonates with ${npc.name}'s power. A blessing will carry into your next battle against an archmage.</div>`;
+      if (chapelBuff) {
+        html +=
+          `<div class="crp-stat-row"><b style="color:#ffcc44">${chapelBuff.name}</b><br>${chapelBuff.desc}</div>`;
+        if (existing) {
+          html += `<div class="crp-stat-row" style="opacity:0.45;font-size:9px">Active blessing: ${existing.name} — will be replaced</div>`;
+        }
+        html += `<button class="btn crp-btn" id="crp-chapel-btn">⛪ Receive Blessing</button>`;
+      }
+      panel.innerHTML = html;
+      setTimeout(() => {
+        const btn = document.getElementById('crp-chapel-btn');
+        if (btn) btn.onclick = () => {
+          G.player.chapelBuff = Object.assign({}, chapelBuff);
+          renderRoomInteraction(room, npc, panel);
+        };
+      }, 10);
+      break;
+    }
+
+    case 'treasure': {
+      panel.innerHTML =
+        `<div class="crp-title">${room.icon} ${room.name}</div>` +
+        `<div class="crp-desc">Chests of arcane artefacts line every wall. You sense tremendous power here — but the means to attune these items has not yet been revealed.</div>` +
+        `<div class="crp-stat-row" style="opacity:0.38;font-size:9px">(Magic item equipping — coming soon)</div>`;
+      break;
+    }
+
+    default:
+      panel.innerHTML =
+        `<div class="crp-title">${room.icon} ${room.name}</div>` +
+        `<div class="crp-desc">${room.hint}</div>`;
+  }
+}
+
+function studySpell(spellId, npc) {
+  if (G.player.spellIds.includes(spellId)) return;
+  G.player.spellIds.push(spellId);
+  G.player.spellArcaneFailure[spellId] = 0.4;
+  const room = npc.castle.grid.find(r => r && r.id === 'library');
+  if (room) renderRoomInteraction(room, npc, document.getElementById('castle-room-panel'));
+}
+
+function practiceSpell(spellId, npc) {
+  const cur = G.player.spellArcaneFailure[spellId];
+  if (!cur) return;
+  const next = Math.max(0, cur - 0.2);
+  if (next <= 0) delete G.player.spellArcaneFailure[spellId];
+  else           G.player.spellArcaneFailure[spellId] = next;
+  const room = npc.castle.grid.find(r => r && r.id === 'training');
+  if (room) renderRoomInteraction(room, npc, document.getElementById('castle-room-panel'));
+}
+
+function beginApprenticeBattle(room, castleNpc) {
+  const app = room.apprenticeDef;
+  if (!app) return;
+  G.activeNpc = Object.assign({}, app, {
+    isCastleApprentice: true,
+    castleRoom: room,
+    contIds: app.contIds || [],
+  });
+  G.prep = { budget: PLAYER_PREP_BUDGET, chosen: [] };
+
+  const banner = document.getElementById('prep-foe-banner');
+  banner.textContent  = `${app.name} — ${app.title}`;
+  banner.style.color  = app.col;
+  banner.style.borderColor = (app.col || '#888') + '60';
+
+  refreshPrepUI();
+  setScreen('prep');
+}
+
+function applyChapelBuff(buff, ds) {
+  if (!buff) return;
+  switch (buff.type) {
+    case 'startMana':
+      ds.player.mana = Math.min(ds.player.maxMana, ds.player.mana + buff.amt);
+      addLog(`${buff.name}: +${buff.amt} mana!`);
+      break;
+    case 'tempHp':
+      ds.player.maxHp += buff.amt;
+      ds.player.hp    += buff.amt;
+      addLog(`${buff.name}: +${buff.amt} temporary HP!`);
+      break;
+    case 'lifebraid':
+      ds.player.contingencies.unshift(makeContInstance(CONT_MAP['lifebraid']));
+      addLog(`${buff.name}: Life Braid blessing active!`);
+      break;
+    case 'ward_sm':
+      ds.player.contingencies.unshift(makeContInstance(CONT_MAP['ward_sm']));
+      addLog(`${buff.name}: Minor Ward blessing active!`);
+      break;
+  }
 }
 
 // ─── PREP PHASE ────────────────────────────────────────────────────────
@@ -992,6 +1451,14 @@ function startDuel() {
 
   if (G.duelRaf) cancelAnimationFrame(G.duelRaf);
   G.duelRaf = requestAnimationFrame(duelFrame);
+
+  // Apply chapel blessing for archmage battles only
+  if (G.player.chapelBuff && !npc.isRoamingEnemy && !npc.isCastleApprentice) {
+    const buff = G.player.chapelBuff;
+    G.player.chapelBuff = null;
+    applyChapelBuff(buff, DS);
+    updateDuelHUD();
+  }
 }
 
 function resizeDuelCanvas() {
@@ -1288,6 +1755,16 @@ function attemptCast() {
   recordCast(spellId);
   clearSeq();
   const discStr = disc > 0 ? ` (affinity −${disc})` : '';
+
+  // Arcane failure check for library-learned spells
+  const failChance = G.player.spellArcaneFailure[spellId] || 0;
+  if (failChance > 0 && Math.random() < failChance) {
+    addLog(`Arcane failure! ${spell.name} fizzles — insufficient mastery. (1 mana lost)`);
+    DS.player.mana = Math.max(0, DS.player.mana - 1);
+    updateDuelHUD();
+    return;
+  }
+
   addLog(`You cast ${spell.name}${discStr}!`);
   resolveSpell(spell, 'player', 'enemy');
 }
@@ -1579,6 +2056,35 @@ function endDuel(victory) {
   setInputEnabled(false);
   const npc = G.activeNpc;
 
+  // Castle apprentice battle
+  if (npc.isCastleApprentice) {
+    const room = npc.castleRoom;
+    if (victory) {
+      room.apprenticeDefeated = true;
+      G.player.hp   = DS.player.hp;
+      G.player.mana = DS.player.mana;
+      document.getElementById('res-icon').textContent = '⚔';
+      const titleEl = document.getElementById('res-title');
+      titleEl.textContent = 'Apprentice Defeated!';
+      titleEl.style.color = '#44cc66';
+      document.getElementById('res-desc').textContent =
+        `${npc.name} has fallen.\nThe ${room.name} is now accessible.`;
+      document.getElementById('res-rewards').textContent = room.hint || '';
+    } else {
+      G.player.hp   = Math.max(30, Math.floor(G.player.maxHp * 0.5));
+      G.player.mana = G.player.manaRegen * 2;
+      document.getElementById('res-icon').textContent = '💀';
+      const titleEl = document.getElementById('res-title');
+      titleEl.textContent = 'Defeated';
+      titleEl.style.color = '#ff4466';
+      document.getElementById('res-desc').textContent =
+        `${npc.name} drives you back.\nRecover your strength and try again.`;
+      document.getElementById('res-rewards').textContent = '';
+    }
+    setScreen('result');
+    return;
+  }
+
   if (npc.isRoamingEnemy) {
     if (victory) {
       npc.alive = false;
@@ -1606,6 +2112,7 @@ function endDuel(victory) {
 
   if (victory) {
     npc.defeated = true;
+    G.castleContext = null; // archmage slain — return to world on continue
     const newSpells = (npc.reward || []).filter(id => !G.player.spellIds.includes(id));
     newSpells.forEach(id => G.player.spellIds.push(id));
     G.player.hp   = DS.player.hp;
@@ -1785,9 +2292,23 @@ window.addEventListener('load', () => {
       G.world.moveDir = null;
   });
 
+  // — Castle
+  document.getElementById('btn-castle-back').onclick = () => {
+    G.castleContext = null;
+    setScreen('world');
+    startWorld();
+  };
+
   // — Prep
   document.getElementById('btn-enter-duel').onclick   = () => startDuel();
-  document.getElementById('btn-prep-retreat').onclick = () => { setScreen('world'); startWorld(); };
+  document.getElementById('btn-prep-retreat').onclick = () => {
+    if (G.castleContext) {
+      openCastle(G.castleContext.npc);
+    } else {
+      setScreen('world');
+      startWorld();
+    }
+  };
 
   // — Duel actions
   document.getElementById('btn-cast').onclick    = attemptCast;
@@ -1796,8 +2317,9 @@ window.addEventListener('load', () => {
 
   // — Result
   document.getElementById('btn-res-cont').onclick = () => {
-    if (!G.activeNpc?.isRoamingEnemy && G.npcs.every(n => n.defeated)) {
-      document.getElementById('res-icon').textContent  = '\ud83d�';
+    const isArchVictory = !G.activeNpc?.isRoamingEnemy && !G.activeNpc?.isCastleApprentice;
+    if (isArchVictory && G.npcs.every(n => n.defeated)) {
+      document.getElementById('res-icon').textContent  = '\ud83d\udc51';
       document.getElementById('res-title').textContent = 'Arch-Wizard!';
       document.getElementById('res-title').style.color = '';
       document.getElementById('res-desc').textContent  =
@@ -1809,6 +2331,8 @@ window.addEventListener('load', () => {
         buildStarterUI();
         setScreen('title');
       };
+    } else if (G.castleContext) {
+      openCastle(G.castleContext.npc);
     } else {
       setScreen('world');
       startWorld();
