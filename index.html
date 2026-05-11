@@ -30,6 +30,19 @@
     <button class="btn btn-alt" id="btn-create-back">← Back</button>
   </div>
 
+  <!-- ATLAS -->
+  <div class="screen" data-screen="atlas">
+    <div class="atlas-scroll">
+      <div class="atlas-title-wrap">
+        <div class="atlas-rune">📜</div>
+        <h2 class="atlas-heading">Regional Atlas</h2>
+        <p class="atlas-sub">Choose your destination</p>
+      </div>
+      <div id="atlas-grid" class="atlas-grid"></div>
+      <button class="btn btn-alt" id="btn-atlas-back">← Return</button>
+    </div>
+  </div>
+
   <!-- WORLD MAP -->
   <div class="screen screen-fill" data-screen="world">
     <canvas id="world-canvas"></canvas>
@@ -41,7 +54,10 @@
           <div class="mini-track"><div class="mini-fill mana-fill" id="w-manabar"></div></div>
         </div>
       </div>
-      <div class="whud-r" id="whud-loc">The World</div>
+      <div class="whud-r">
+        <div id="whud-loc" class="whud-loc">The World</div>
+        <button class="atlas-hud-btn" id="btn-open-atlas">📜 Atlas</button>
+      </div>
     </div>
     <div id="world-msg" class="world-msg"></div>
     <div class="dpad" id="world-dpad">

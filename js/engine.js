@@ -116,6 +116,46 @@ const NPC_DEFS = [
 
 const STARTER_IDS = ['bloodsurge', 'arcanebolt', 'thornwhip', 'smite'];
 
+// ─── REGIONS ───────────────────────────────────────────────────────────────
+// One region per arch-mage, each with distinct biome terrain and tile palette.
+
+const REGIONS = [
+  {
+    id: 'reach', name: "Eldrin's Reach", npcId: 'eldrin',
+    lore: 'Frozen peaks where arcane energies crystallize in the eternal cold.',
+    seed: 1001,
+    thresholds: [0.15, 0.22, 0.42, 0.52, 0.60, 0.72],
+    tileColors: { 0:'#081820', 1:'#0e2d4a', 2:'#9ab8cc', 3:'#6a7e88', 4:'#0a2818', 5:'#c8dce8', 6:'#e0edf8' },
+    npcPos: { wx: 0.65, wy: 0.38 },
+  },
+  {
+    id: 'wastes', name: "Malachar's Wastes", npcId: 'malachar',
+    lore: 'Scorched wastelands where blood magic festers in the ash and cinder.',
+    seed: 2002,
+    thresholds: [0.10, 0.16, 0.30, 0.70, 0.76, 0.86],
+    tileColors: { 0:'#580e04', 1:'#8a2010', 2:'#3c1e12', 3:'#7c2e18', 4:'#231008', 5:'#3a2020', 6:'#888070' },
+    npcPos: { wx: 0.35, wy: 0.62 },
+  },
+  {
+    id: 'glade', name: "Sylvara's Glade", npcId: 'sylvara',
+    lore: "Ancient groves teeming with the oldest and deepest of nature's magic.",
+    seed: 3003,
+    thresholds: [0.18, 0.26, 0.56, 0.60, 0.88, 0.95],
+    tileColors: { 0:'#0e2030', 1:'#1e4460', 2:'#1a5a16', 3:'#3a3018', 4:'#082808', 5:'#304828', 6:'#c0d0b8' },
+    npcPos: { wx: 0.70, wy: 0.65 },
+  },
+  {
+    id: 'sanctum', name: "Aurelia's Sanctum", npcId: 'aurelia',
+    lore: 'Rolling golden plains where the light of divinity warms every stone.',
+    seed: 4004,
+    thresholds: [0.15, 0.22, 0.75, 0.85, 0.90, 0.95],
+    tileColors: { 0:'#102030', 1:'#1e3c60', 2:'#4a6218', 3:'#887840', 4:'#1a3e10', 5:'#7a7060', 6:'#e0dcc8' },
+    npcPos: { wx: 0.50, wy: 0.35 },
+  },
+];
+const REGION_MAP = {};
+REGIONS.forEach(r => { REGION_MAP[r.id] = r; });
+
 // ─── WORLD MAP ─────────────────────────────────────────────────────────
 
 const MW = 64, MH = 44, TPIX = 17;
@@ -127,6 +167,7 @@ const T_COLOR = {
 const T_WALK = new Set([T.GRASS, T.DIRT]);
 
 let worldTiles;
+let activeRegionColors = T_COLOR;
 
 function hashNoise(x, y) {
   let v = ((x * 1619 + y * 31337 + 6271) & 0x7fffffff);
@@ -143,34 +184,42 @@ function smoothNoise(x, y, sc) {
   return (a * (1 - xf) * (1 - yf) + b * xf * (1 - yf) + c * (1 - xf) * yf + d * xf * yf) / 0xffff;
 }
 
-function genWorld() {
+function genWorld(region) {
   worldTiles = new Uint8Array(MW * MH);
+  const seed = region ? region.seed : 0;
+  const th   = region ? region.thresholds : [0.27, 0.36, 0.55, 0.62, 0.74, 0.86];
+  activeRegionColors = region ? region.tileColors : T_COLOR;
+
   for (let y = 0; y < MH; y++) {
     for (let x = 0; x < MW; x++) {
-      const h = smoothNoise(x, y, 10) * 0.55 + smoothNoise(x, y, 5) * 0.3 + smoothNoise(x, y, 2) * 0.15;
+      const sx = x + seed, sy = y + seed;
+      const h = smoothNoise(sx, sy, 10) * 0.55 + smoothNoise(sx, sy, 5) * 0.3 + smoothNoise(sx, sy, 2) * 0.15;
       let t;
-      if      (h < 0.27) t = T.DEEP;
-      else if (h < 0.36) t = T.WATER;
-      else if (h < 0.55) t = T.GRASS;
-      else if (h < 0.62) t = T.DIRT;
-      else if (h < 0.74) t = T.TREE;
-      else if (h < 0.86) t = T.MOUNTAIN;
-      else               t = T.SNOW;
+      if      (h < th[0]) t = T.DEEP;
+      else if (h < th[1]) t = T.WATER;
+      else if (h < th[2]) t = T.GRASS;
+      else if (h < th[3]) t = T.DIRT;
+      else if (h < th[4]) t = T.TREE;
+      else if (h < th[5]) t = T.MOUNTAIN;
+      else                t = T.SNOW;
       worldTiles[y * MW + x] = t;
     }
   }
 
-  // Carve walkable clearing around each NPC and store tile coords
-  NPC_DEFS.forEach(npc => {
-    npc.mx = Math.round(npc.wx * (MW - 4) + 2);
-    npc.my = Math.round(npc.wy * (MH - 4) + 2);
-    for (let dy = -3; dy <= 3; dy++)
-      for (let dx = -3; dx <= 3; dx++) {
-        const tx = npc.mx + dx, ty = npc.my + dy;
-        if (tx >= 0 && tx < MW && ty >= 0 && ty < MH)
-          worldTiles[ty * MW + tx] = T.GRASS;
-      }
-  });
+  // Carve walkable clearing around only this region's NPC
+  if (region) {
+    const npc = G.npcs.find(n => n.id === region.npcId);
+    if (npc) {
+      npc.mx = Math.round(region.npcPos.wx * (MW - 4) + 2);
+      npc.my = Math.round(region.npcPos.wy * (MH - 4) + 2);
+      for (let dy = -3; dy <= 3; dy++)
+        for (let dx = -3; dx <= 3; dx++) {
+          const tx = npc.mx + dx, ty = npc.my + dy;
+          if (tx >= 0 && tx < MW && ty >= 0 && ty < MH)
+            worldTiles[ty * MW + tx] = T.GRASS;
+        }
+    }
+  }
 
   // Player start: centre of map, guaranteed walkable
   const sx = Math.round(MW * 0.45), sy = Math.round(MH * 0.5);
@@ -188,7 +237,6 @@ function genWorld() {
 let G = {};
 
 function initGame() {
-  const { sx, sy } = genWorld();
   G = {
     screen: 'title',
     player: {
@@ -197,7 +245,7 @@ function initGame() {
       mana: 8, maxMana: 16, manaRegen: 3,
       spellIds: [...STARTER_IDS],
       castHistory: [],
-      tx: sx, ty: sy,
+      tx: 0, ty: 0,
     },
     npcs: NPC_DEFS.map(d => Object.assign({}, d, { defeated: false })),
     world: { moveDir: null },
@@ -205,7 +253,127 @@ function initGame() {
     activeNpc: null,
     worldTick: null,
     duelRaf: null,
+    currentRegion: null,
+    atlasFrom: 'create',
   };
+}
+
+// ─── ATLAS & REGION TRAVEL ──────────────────────────────────────────────
+
+function openAtlas(from) {
+  G.atlasFrom = from || 'create';
+  stopWorld();
+  renderAtlas();
+  setScreen('atlas');
+}
+
+function renderAtlas() {
+  const grid = document.getElementById('atlas-grid');
+  grid.innerHTML = '';
+  REGIONS.forEach(region => {
+    const npcDef = NPC_DEFS.find(n => n.id === region.npcId);
+    const npc    = G.npcs.find(n => n.id === region.npcId);
+    const defeated  = npc ? npc.defeated : false;
+    const isCurrent = G.currentRegion && G.currentRegion.id === region.id;
+
+    const card = document.createElement('div');
+    card.className = 'atlas-card' + (defeated ? ' atlas-defeated' : '') + (isCurrent ? ' atlas-current' : '');
+    card.style.setProperty('--rc', npcDef.col);
+    card.style.boxShadow = `0 0 14px ${npcDef.col}${isCurrent ? '80' : '30'}`;
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'atlas-card-name';
+    nameEl.textContent = region.name;
+    card.appendChild(nameEl);
+
+    const preview = document.createElement('canvas');
+    preview.className = 'atlas-preview';
+    preview.width  = MW;
+    preview.height = MH;
+    renderRegionPreview(preview, region);
+    card.appendChild(preview);
+
+    const mageEl = document.createElement('div');
+    mageEl.className = 'atlas-mage';
+    mageEl.textContent = `${npcDef.name} · ${npcDef.title}`;
+    card.appendChild(mageEl);
+
+    const loreEl = document.createElement('div');
+    loreEl.className = 'atlas-lore';
+    loreEl.textContent = region.lore;
+    card.appendChild(loreEl);
+
+    if (defeated) {
+      const badge = document.createElement('div');
+      badge.className = 'atlas-badge';
+      badge.textContent = 'Vanquished';
+      card.appendChild(badge);
+    }
+    if (isCurrent) {
+      const badge = document.createElement('div');
+      badge.className = 'atlas-badge atlas-badge-here';
+      badge.textContent = '← Here';
+      card.appendChild(badge);
+    }
+
+    card.onclick = () => travelToRegion(region);
+    grid.appendChild(card);
+  });
+
+  const backBtn = document.getElementById('btn-atlas-back');
+  if (G.atlasFrom === 'world' && G.currentRegion) {
+    backBtn.textContent = '← Return';
+    backBtn.style.display = '';
+  } else {
+    backBtn.style.display = 'none';
+  }
+}
+
+function renderRegionPreview(canvas, region) {
+  const ctx  = canvas.getContext('2d');
+  const seed = region.seed;
+  const th   = region.thresholds;
+  const cols = region.tileColors;
+
+  for (let y = 0; y < MH; y++) {
+    for (let x = 0; x < MW; x++) {
+      const sx = x + seed, sy = y + seed;
+      const h = smoothNoise(sx, sy, 10) * 0.55 + smoothNoise(sx, sy, 5) * 0.3 + smoothNoise(sx, sy, 2) * 0.15;
+      let t;
+      if      (h < th[0]) t = T.DEEP;
+      else if (h < th[1]) t = T.WATER;
+      else if (h < th[2]) t = T.GRASS;
+      else if (h < th[3]) t = T.DIRT;
+      else if (h < th[4]) t = T.TREE;
+      else if (h < th[5]) t = T.MOUNTAIN;
+      else                t = T.SNOW;
+      ctx.fillStyle = cols[t] || '#111';
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+
+  // Mage location dot
+  const npcDef = NPC_DEFS.find(n => n.id === region.npcId);
+  const mx = Math.round(region.npcPos.wx * (MW - 4) + 2);
+  const my = Math.round(region.npcPos.wy * (MH - 4) + 2);
+  ctx.fillStyle = npcDef.col;
+  ctx.shadowColor = npcDef.col;
+  ctx.shadowBlur = 4;
+  ctx.beginPath();
+  ctx.arc(mx, my, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+function travelToRegion(region) {
+  G.currentRegion = region;
+  const { sx, sy } = genWorld(region);
+  G.player.tx = sx;
+  G.player.ty = sy;
+  msgNpc = null;
+  document.getElementById('world-msg').classList.remove('show');
+  setScreen('world');
+  startWorld();
 }
 
 // ─── AFFINITY ───────────────────────────────────────────────────────────
@@ -301,7 +469,7 @@ function drawWorld() {
         : T.DEEP;
       const px = Math.round(tx * TPIX - camX);
       const py = Math.round(ty * TPIX - camY + HUD_H);
-      wx.fillStyle = T_COLOR[tile] || '#111';
+      wx.fillStyle = activeRegionColors[tile] || '#111';
       wx.fillRect(px, py, TPIX, TPIX);
     }
   }
@@ -318,29 +486,30 @@ function drawWorld() {
     wx.beginPath(); wx.moveTo(0, py); wx.lineTo(cw, py); wx.stroke();
   }
 
-  // NPC markers
-  G.npcs.forEach(npc => {
-    const px = Math.round(npc.mx * TPIX - camX + TPIX / 2);
-    const py = Math.round(npc.my * TPIX - camY + HUD_H + TPIX / 2);
-    wx.globalAlpha = npc.defeated ? 0.3 : 1;
-    // Tower
-    wx.fillStyle = npc.col;
-    wx.shadowColor = npc.col;
-    wx.shadowBlur = npc.defeated ? 0 : 12;
-    wx.beginPath();
-    wx.moveTo(px, py - 16);
-    wx.lineTo(px - 9, py + 5);
-    wx.lineTo(px + 9, py + 5);
-    wx.closePath();
-    wx.fill();
-    wx.shadowBlur = 0;
-    // Label
-    wx.fillStyle = npc.defeated ? 'rgba(255,255,255,0.28)' : '#fff';
-    wx.font = '8px Cinzel, serif';
-    wx.textAlign = 'center';
-    wx.fillText(npc.name, px, py + 18);
-    wx.globalAlpha = 1;
-  });
+  // NPC marker — only this region's arch-mage
+  if (G.currentRegion) {
+    const npc = G.npcs.find(n => n.id === G.currentRegion.npcId);
+    if (npc && npc.mx !== undefined) {
+      const px = Math.round(npc.mx * TPIX - camX + TPIX / 2);
+      const py = Math.round(npc.my * TPIX - camY + HUD_H + TPIX / 2);
+      wx.globalAlpha = npc.defeated ? 0.3 : 1;
+      wx.fillStyle = npc.col;
+      wx.shadowColor = npc.col;
+      wx.shadowBlur = npc.defeated ? 0 : 12;
+      wx.beginPath();
+      wx.moveTo(px, py - 16);
+      wx.lineTo(px - 9, py + 5);
+      wx.lineTo(px + 9, py + 5);
+      wx.closePath();
+      wx.fill();
+      wx.shadowBlur = 0;
+      wx.fillStyle = npc.defeated ? 'rgba(255,255,255,0.28)' : '#fff';
+      wx.font = '8px Cinzel, serif';
+      wx.textAlign = 'center';
+      wx.fillText(npc.name, px, py + 18);
+      wx.globalAlpha = 1;
+    }
+  }
 
   // Player marker
   const ppx = Math.round(G.player.tx * TPIX - camX + TPIX / 2);
@@ -370,35 +539,38 @@ function updateWorldHUD() {
   document.getElementById('w-hpbar').style.width   = `${(G.player.hp   / G.player.maxHp)   * 100}%`;
   document.getElementById('w-manabar').style.width = `${(G.player.mana / G.player.maxMana) * 100}%`;
 
-  // Nearest NPC for location label
-  let minD = 999, near = null;
-  G.npcs.forEach(npc => {
-    const d = Math.abs(npc.mx - G.player.tx) + Math.abs(npc.my - G.player.ty);
-    if (d < minD) { minD = d; near = npc; }
-  });
-  document.getElementById('whud-loc').textContent =
-    (near && minD <= 10) ? `Near ${near.name}'s Domain` : 'The World';
+  let locText = G.currentRegion ? G.currentRegion.name : 'The World';
+  if (G.currentRegion) {
+    const npc = G.npcs.find(n => n.id === G.currentRegion.npcId);
+    if (npc && npc.mx !== undefined) {
+      const d = Math.abs(npc.mx - G.player.tx) + Math.abs(npc.my - G.player.ty);
+      if (d <= 10) locText = `Near ${npc.name}'s Tower`;
+    }
+  }
+  document.getElementById('whud-loc').textContent = locText;
 }
 
 const msgEl = document.getElementById('world-msg');
 let msgNpc = null;
 
 function checkNpcProximity() {
-  for (const npc of G.npcs) {
-    const dx = Math.abs(npc.mx - G.player.tx);
-    const dy = Math.abs(npc.my - G.player.ty);
-    if (dx <= 2 && dy <= 2 && !npc.defeated) {
-      if (msgNpc !== npc) {
-        msgNpc = npc;
-        msgEl.innerHTML = `<b style="color:${npc.col}">${npc.name} — ${npc.title}</b>\n${npc.intro}\n<button class="world-msg-btn" id="btn-challenge">⚔ Challenge</button>`;
-        msgEl.classList.add('show');
-        setTimeout(() => {
-          const btn = document.getElementById('btn-challenge');
-          if (btn) btn.onclick = () => beginPrep(npc);
-        }, 10);
-      }
-      return;
+  if (!G.currentRegion) { msgNpc = null; msgEl.classList.remove('show'); return; }
+  const npc = G.npcs.find(n => n.id === G.currentRegion.npcId);
+  if (!npc || npc.mx === undefined) { msgNpc = null; msgEl.classList.remove('show'); return; }
+
+  const dx = Math.abs(npc.mx - G.player.tx);
+  const dy = Math.abs(npc.my - G.player.ty);
+  if (dx <= 2 && dy <= 2 && !npc.defeated) {
+    if (msgNpc !== npc) {
+      msgNpc = npc;
+      msgEl.innerHTML = `<b style="color:${npc.col}">${npc.name} — ${npc.title}</b>\n${npc.intro}\n<button class="world-msg-btn" id="btn-challenge">⚔ Challenge</button>`;
+      msgEl.classList.add('show');
+      setTimeout(() => {
+        const btn = document.getElementById('btn-challenge');
+        if (btn) btn.onclick = () => beginPrep(npc);
+      }, 10);
     }
+    return;
   }
   msgNpc = null;
   msgEl.classList.remove('show');
@@ -1252,10 +1424,20 @@ window.addEventListener('load', () => {
   document.getElementById('btn-start-journey').onclick = () => {
     const name = (document.getElementById('wizard-name').value || '').trim() || 'Archmage';
     G.player.name = name;
-    setScreen('world');
-    startWorld();
+    openAtlas('create');
   };
   document.getElementById('btn-create-back').onclick = () => setScreen('title');
+
+  // — Atlas
+  document.getElementById('btn-atlas-back').onclick = () => {
+    if (G.atlasFrom === 'world' && G.currentRegion) {
+      setScreen('world');
+      startWorld();
+    } else {
+      setScreen('create');
+    }
+  };
+  document.getElementById('btn-open-atlas').onclick = () => openAtlas('world');
 
   // — World D-pad
   document.querySelectorAll('#world-dpad .dpbtn').forEach(btn => {
@@ -1276,6 +1458,12 @@ window.addEventListener('load', () => {
     if (K_MAP[e.key] && G.screen === 'world') {
       G.world.moveDir = K_MAP[e.key];
       e.preventDefault();
+    }
+    if (e.key === 'm' || e.key === 'M') {
+      if (G.screen === 'world') openAtlas('world');
+      else if (G.screen === 'atlas' && G.atlasFrom === 'world' && G.currentRegion) {
+        setScreen('world'); startWorld();
+      }
     }
   });
   window.addEventListener('keyup', e => {
