@@ -172,6 +172,41 @@ const CASTLE_ROOM_DEFS = [
   { id:'treasure', name:'Treasure Room',     icon:'💎', hint:'A vault of magical artifacts. (Items not yet implemented.)' },
 ];
 
+// ─── CASTLE TILEMAP ───────────────────────────────────────────────────────────
+
+const CTPIX = 16;           // pixels per castle tile
+const CCW   = 26;           // castle map width  (tiles)
+const CCH   = 24;           // castle map height (tiles)
+
+// Tile types
+const CC = Object.freeze({ WALL:0, FLOOR:1, ROOM:2, THRONE:3, ENTRY:4 });
+const CC_WALK = new Set([CC.FLOOR, CC.ROOM, CC.THRONE, CC.ENTRY]);
+
+// Physical 3×3 grid layout (col=W→E, row=N→S).
+// Maps each physical cell to the castle's grid[] index.
+//   col0       col1(throne/entry)  col2
+//   grid[1]    grid[8]=THRONE      grid[2]    ← row 0 (north)
+//   grid[3]    grid[4]             grid[5]    ← row 1
+//   grid[6]    grid[0]=ENTRY       grid[7]    ← row 2 (south)
+const CASTLE_ZONES = [
+  { col:0, row:0, gridIdx:1 },
+  { col:1, row:0, gridIdx:8 },
+  { col:2, row:0, gridIdx:2 },
+  { col:0, row:1, gridIdx:3 },
+  { col:1, row:1, gridIdx:4 },
+  { col:2, row:1, gridIdx:5 },
+  { col:0, row:2, gridIdx:6 },
+  { col:1, row:2, gridIdx:0 },
+  { col:2, row:2, gridIdx:7 },
+];
+
+// Interior x/y tile ranges for each column and row
+const CC_COLS = [ { x1:1, x2:6 }, { x1:10, x2:15 }, { x1:19, x2:24 } ];
+const CC_ROWS = [ { y1:1, y2:5 }, { y1:9,  y2:13 }, { y1:17, y2:21 } ];
+
+// Player starting tile (centre of Entry room: col1 row2)
+const CASTLE_SPAWN_X = 12, CASTLE_SPAWN_Y = 19;
+
 const REGION_THEME_COLOR = {
   eldrin:'blue', malachar:'red', sylvara:'green', aurelia:'gold',
 };
@@ -436,10 +471,12 @@ function initGame() {
     },
     npcs: NPC_DEFS.map(d => Object.assign({}, d, { defeated: false, castle: null })),
     enemies: [],
-    world: { moveDir: null },
+    world:  { moveDir: null },
+    castle: { moveDir: null, lastRoom: -2 },
     prep: null,
     activeNpc: null,
     worldTick: null,
+    castleTick: null,
     duelRaf: null,
     currentRegion: null,
     atlasFrom: 'create',
@@ -663,6 +700,9 @@ function setScreen(name) {
 
 const wCan = document.getElementById('world-canvas');
 const wx = wCan.getContext('2d');
+
+const castleCan = document.getElementById('castle-canvas');
+const castleCtx = castleCan.getContext('2d');
 
 const HUD_H = 44;
 
@@ -974,68 +1014,25 @@ function allApprenticesDefeated(npc) {
 }
 
 function openCastle(npc) {
+  stopCastle();
   if (!npc.castle) initCastle(npc);
   G.castleContext = { npc };
+  G.castle.lastRoom = -2;
   G.activeNpc = null;
   stopWorld();
-  renderCastle(npc);
-  setScreen('castle');
-}
 
-function renderCastle(npc) {
   const titleEl = document.getElementById('castle-title');
   titleEl.textContent = `${npc.name}'s Castle`;
   titleEl.style.color = npc.col;
-
   updateCastleHUD();
 
-  const grid = document.getElementById('castle-grid');
-  grid.innerHTML = '';
-
-  const allCleared = allApprenticesDefeated(npc);
-
-  npc.castle.grid.forEach(room => {
-    const cell = document.createElement('div');
-
-    if (room.isEntry) {
-      cell.className = 'castle-room castle-room-entry';
-      cell.innerHTML =
-        `<div class="cr-icon">${room.icon}</div>` +
-        `<div class="cr-name">${room.name}</div>`;
-    } else if (room.isThrone) {
-      if (npc.defeated) {
-        cell.className = 'castle-room castle-room-cleared';
-        cell.innerHTML =
-          `<div class="cr-icon">${room.icon}</div>` +
-          `<div class="cr-name">${room.name}</div>` +
-          `<div class="cr-state">✓</div>`;
-      } else if (allCleared) {
-        cell.className = 'castle-room castle-room-throne-open';
-        cell.innerHTML =
-          `<div class="cr-icon">${room.icon}</div>` +
-          `<div class="cr-name">${room.name}</div>` +
-          `<div class="cr-state">👑</div>`;
-      } else {
-        cell.className = 'castle-room castle-room-throne-locked';
-        cell.innerHTML =
-          `<div class="cr-icon">${room.icon}</div>` +
-          `<div class="cr-name">${room.name}</div>` +
-          `<div class="cr-state">🔒</div>`;
-      }
-    } else {
-      const cleared = room.apprenticeDefeated;
-      cell.className = 'castle-room ' + (cleared ? 'castle-room-cleared' : 'castle-room-locked');
-      cell.innerHTML =
-        `<div class="cr-icon">${room.icon}</div>` +
-        `<div class="cr-name">${room.name}</div>` +
-        `<div class="cr-state">${cleared ? '✓' : '⚔'}</div>`;
-    }
-
-    cell.onclick = () => showRoomPanel(room, npc, allCleared);
-    grid.appendChild(cell);
-  });
+  G.player.castleX = CASTLE_SPAWN_X;
+  G.player.castleY = CASTLE_SPAWN_Y;
+  castleTiles = buildCastleTiles();
 
   document.getElementById('castle-room-panel').classList.add('hidden');
+  setScreen('castle');
+  startCastle(npc);
 }
 
 function updateCastleHUD() {
@@ -1044,6 +1041,305 @@ function updateCastleHUD() {
   document.getElementById('castle-hud-mana').style.width = `${(p.mana / p.maxMana) * 100}%`;
   document.getElementById('castle-hud-hp-val').textContent   = `${p.hp}/${p.maxHp}`;
   document.getElementById('castle-hud-mana-val').textContent = `${p.mana}/${p.maxMana}`;
+}
+
+// ─── CASTLE CANVAS ENGINE ─────────────────────────────────────────────────────
+
+let castleTiles = null;
+
+function buildCastleTiles() {
+  const tiles = new Uint8Array(CCW * CCH).fill(CC.WALL);
+
+  // Room interiors
+  for (const zone of CASTLE_ZONES) {
+    const { x1, x2 } = CC_COLS[zone.col];
+    const { y1, y2 } = CC_ROWS[zone.row];
+    // throne room gets special tile type; entry hall gets ENTRY; rest get ROOM
+    const gridRoom = null; // resolved at draw time; here just set base types
+    const ttype = (zone.gridIdx === 8) ? CC.THRONE
+                : (zone.gridIdx === 0) ? CC.ENTRY
+                : CC.ROOM;
+    for (let y = y1; y <= y2; y++)
+      for (let x = x1; x <= x2; x++)
+        tiles[y * CCW + x] = ttype;
+  }
+
+  // E-W passages – 3-tile-wide gap between adjacent cols, opened 2 tiles tall
+  for (let row = 0; row < 3; row++) {
+    const py1 = CC_ROWS[row].y1 + 1;
+    const py2 = CC_ROWS[row].y1 + 2;
+    for (let y = py1; y <= py2; y++) {
+      for (let x = 7;  x <= 9;  x++) tiles[y * CCW + x] = CC.FLOOR; // col0↔col1
+      for (let x = 16; x <= 18; x++) tiles[y * CCW + x] = CC.FLOOR; // col1↔col2
+    }
+  }
+
+  // N-S passages – open 2 tiles wide at centre of each column, spanning the 3-row gap
+  for (let col = 0; col < 3; col++) {
+    const px1 = CC_COLS[col].x1 + 2;
+    const px2 = CC_COLS[col].x1 + 3;
+    for (let x = px1; x <= px2; x++) {
+      for (let y = 6;  y <= 8;  y++) tiles[y * CCW + x] = CC.FLOOR; // row0↔row1
+      for (let y = 14; y <= 16; y++) tiles[y * CCW + x] = CC.FLOOR; // row1↔row2
+    }
+  }
+
+  // Exit passage south of Entry room (col1 centre) so player can't walk out
+  // y=22 is already WALL; leave it — the back button is the exit
+
+  return tiles;
+}
+
+function startCastle(npc) {
+  resizeCastleCan();
+  if (!G.castleTick) G.castleTick = setInterval(() => castleStep(npc), 130);
+  checkCastleRoomPanel(npc);
+}
+
+function stopCastle() {
+  clearInterval(G.castleTick);
+  G.castleTick = null;
+}
+
+function resizeCastleCan() {
+  castleCan.width  = castleCan.clientWidth  || castleCan.offsetWidth  || 480;
+  castleCan.height = castleCan.clientHeight || castleCan.offsetHeight || 400;
+}
+
+function castleStep(npc) {
+  if (G.screen !== 'castle') return;
+  moveCastlePlayer(npc);
+  drawCastle(npc);
+}
+
+function moveCastlePlayer(npc) {
+  const dir = G.castle.moveDir;
+  if (!dir) return;
+  const [dx, dy] = DIR[dir];
+  const nx = G.player.castleX + dx;
+  const ny = G.player.castleY + dy;
+  if (nx < 0 || nx >= CCW || ny < 0 || ny >= CCH) return;
+  if (!CC_WALK.has(castleTiles[ny * CCW + nx])) return;
+  G.player.castleX = nx;
+  G.player.castleY = ny;
+  checkCastleRoomPanel(npc);
+}
+
+function castleZoneAt(tx, ty) {
+  for (const zone of CASTLE_ZONES) {
+    const { x1, x2 } = CC_COLS[zone.col];
+    const { y1, y2 } = CC_ROWS[zone.row];
+    if (tx >= x1 && tx <= x2 && ty >= y1 && ty <= y2) return zone.gridIdx;
+  }
+  return -1;
+}
+
+function checkCastleRoomPanel(npc) {
+  const gridIdx = castleZoneAt(G.player.castleX, G.player.castleY);
+  if (gridIdx === G.castle.lastRoom) return;
+  G.castle.lastRoom = gridIdx;
+  if (gridIdx < 0) {
+    document.getElementById('castle-room-panel').classList.add('hidden');
+    return;
+  }
+  const allCleared = allApprenticesDefeated(npc);
+  showRoomPanel(npc.castle.grid[gridIdx], npc, allCleared);
+}
+
+// ─── CASTLE DRAWING ──────────────────────────────────────────────────────────
+
+function hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  return {
+    r: parseInt(h.substring(0, 2), 16),
+    g: parseInt(h.substring(2, 4), 16),
+    b: parseInt(h.substring(5, 7), 16),
+  };
+}
+
+function drawCastle(npc) {
+  const cw = castleCan.width, ch = castleCan.height;
+  if (!cw || !ch || !castleTiles) return;
+
+  const ctx = castleCtx;
+  const camX = G.player.castleX * CTPIX + CTPIX / 2 - cw / 2;
+  const camY = G.player.castleY * CTPIX + CTPIX / 2 - ch / 2;
+
+  ctx.fillStyle = '#05021a';
+  ctx.fillRect(0, 0, cw, ch);
+
+  const tx0 = Math.floor(camX / CTPIX) - 1;
+  const ty0 = Math.floor(camY / CTPIX) - 1;
+  const txN = Math.ceil(cw  / CTPIX) + 3;
+  const tyN = Math.ceil(ch  / CTPIX) + 3;
+
+  const rgb  = hexToRgb(npc.col);
+  const tint = `rgba(${rgb.r},${rgb.g},${rgb.b},0.11)`;
+
+  for (let ty = ty0; ty < ty0 + tyN; ty++) {
+    for (let tx = tx0; tx < tx0 + txN; tx++) {
+      const tile = (tx >= 0 && tx < CCW && ty >= 0 && ty < CCH)
+        ? castleTiles[ty * CCW + tx] : CC.WALL;
+      const px = Math.round(tx * CTPIX - camX);
+      const py = Math.round(ty * CTPIX - camY);
+      drawCastleTile(ctx, tile, px, py, tint, npc.col);
+    }
+  }
+
+  // Subtle grid lines on walkable tiles
+  ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+  ctx.lineWidth   = 0.5;
+  for (let tx = tx0; tx < tx0 + txN; tx++) {
+    const px = Math.round(tx * CTPIX - camX);
+    ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, ch); ctx.stroke();
+  }
+  for (let ty = ty0; ty < ty0 + tyN; ty++) {
+    const py = Math.round(ty * CTPIX - camY);
+    ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(cw, py); ctx.stroke();
+  }
+
+  // Room name labels
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 7px "Cinzel", serif';
+  for (const zone of CASTLE_ZONES) {
+    const { x1, x2 } = CC_COLS[zone.col];
+    const { y1, y2 } = CC_ROWS[zone.row];
+    const room = npc.castle.grid[zone.gridIdx];
+    if (!room) continue;
+    const lx = Math.round(((x1 + x2) / 2 + 0.5) * CTPIX - camX);
+    const ly = Math.round(((y1 + y2) / 2 + 0.5) * CTPIX - camY);
+    const isCleared = room.apprenticeDefeated || room.isEntry;
+    const isThrone  = room.isThrone;
+    const labelCol  = isThrone ? '#ffcc44'
+                    : isCleared ? '#55ee77'
+                    : 'rgba(240,180,90,0.55)';
+    ctx.fillStyle = labelCol;
+    ctx.fillText(room.name.toUpperCase(), lx, ly + 3);
+  }
+
+  drawCastleNpcs(ctx, npc, camX, camY);
+
+  // Player
+  const ppx = Math.round(G.player.castleX * CTPIX + CTPIX / 2 - camX);
+  const ppy = Math.round(G.player.castleY * CTPIX + CTPIX / 2 - camY);
+  const bob = Math.sin(Date.now() / 400) * 1.5;
+  ctx.shadowColor = '#c9a84c'; ctx.shadowBlur = 8;
+  ctx.fillStyle = '#f0cc6a';
+  ctx.beginPath(); ctx.arc(ppx, ppy - 4 + bob, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillRect(ppx - 4, ppy + 1 + bob, 8, 6);
+  ctx.shadowBlur = 0;
+}
+
+function drawCastleTile(ctx, tile, px, py, roomTint, npcCol) {
+  const S = CTPIX;
+  switch (tile) {
+    case CC.WALL: {
+      ctx.fillStyle = '#100720';
+      ctx.fillRect(px, py, S, S);
+      // top-left highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillRect(px, py, S, 2);
+      ctx.fillRect(px, py, 2, S);
+      // bottom-right shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(px, py + S - 2, S, 2);
+      ctx.fillRect(px + S - 2, py, 2, S);
+      // inner recess
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(px + 2, py + 2, S - 4, S - 4);
+      break;
+    }
+    case CC.FLOOR: {
+      ctx.fillStyle = '#18102a';
+      ctx.fillRect(px, py, S, S);
+      break;
+    }
+    case CC.ROOM: {
+      ctx.fillStyle = '#130920';
+      ctx.fillRect(px, py, S, S);
+      ctx.fillStyle = roomTint;
+      ctx.fillRect(px, py, S, S);
+      break;
+    }
+    case CC.THRONE: {
+      ctx.fillStyle = '#1a1005';
+      ctx.fillRect(px, py, S, S);
+      ctx.fillStyle = 'rgba(255,198,40,0.13)';
+      ctx.fillRect(px, py, S, S);
+      break;
+    }
+    case CC.ENTRY: {
+      ctx.fillStyle = '#081525';
+      ctx.fillRect(px, py, S, S);
+      ctx.fillStyle = 'rgba(90,130,220,0.10)';
+      ctx.fillRect(px, py, S, S);
+      break;
+    }
+  }
+}
+
+function drawCastleNpcs(ctx, npc, camX, camY) {
+  const now = Date.now();
+  for (const zone of CASTLE_ZONES) {
+    const room = npc.castle.grid[zone.gridIdx];
+    if (!room) continue;
+    const { x1, x2 } = CC_COLS[zone.col];
+    const { y1, y2 } = CC_ROWS[zone.row];
+    const cx = Math.round(((x1 + x2) / 2 + 0.5) * CTPIX - camX);
+    const cy = Math.round(((y1 + y2) / 2 + 0.5) * CTPIX - camY - 8);
+
+    if (room.isThrone && !npc.defeated) {
+      drawWizardFigure(ctx, cx, cy, npc.col, true, now);
+    } else if (!room.isEntry && !room.isThrone && !room.apprenticeDefeated && room.apprenticeDef) {
+      drawWizardFigure(ctx, cx, cy, room.apprenticeDef.col, false, now);
+    }
+  }
+}
+
+function drawWizardFigure(ctx, x, y, col, isArchmage, now) {
+  const sc  = isArchmage ? 1.35 : 1;
+  const bob = Math.sin(now / 550) * 1.5;
+
+  ctx.shadowColor = col;
+  ctx.shadowBlur  = isArchmage ? 14 : 7;
+  ctx.globalAlpha = isArchmage ? 0.92 : 0.78;
+  ctx.fillStyle   = col;
+
+  // Hat (triangle)
+  ctx.beginPath();
+  ctx.moveTo(x,               y - 11 * sc + bob);
+  ctx.lineTo(x - 3.5 * sc,   y -  6 * sc + bob);
+  ctx.lineTo(x + 3.5 * sc,   y -  6 * sc + bob);
+  ctx.closePath(); ctx.fill();
+
+  // Head (circle)
+  ctx.beginPath();
+  ctx.arc(x, y - 3.5 * sc + bob, 3 * sc, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Robe (triangle)
+  ctx.beginPath();
+  ctx.moveTo(x,             y - 1 * sc + bob);
+  ctx.lineTo(x - 4.5 * sc, y + 6 * sc + bob);
+  ctx.lineTo(x + 4.5 * sc, y + 6 * sc + bob);
+  ctx.closePath(); ctx.fill();
+
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur  = 0;
+
+  if (isArchmage) {
+    ctx.fillStyle = '#ffdd44';
+    ctx.font = `${Math.round(9 * sc)}px serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('★', x, y - 14 * sc + bob);
+  } else {
+    ctx.globalAlpha = 0.55 + 0.45 * Math.sin(now / 280);
+    ctx.fillStyle = '#ff7755';
+    ctx.font = '8px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('!', x, y - 13 + bob);
+    ctx.globalAlpha = 1;
+  }
 }
 
 function showRoomPanel(room, npc, allCleared) {
@@ -1278,6 +1574,7 @@ function practiceSpell(spellId, npc) {
 }
 
 function beginApprenticeBattle(room, castleNpc) {
+  stopCastle();
   const app = room.apprenticeDef;
   if (!app) return;
   G.activeNpc = Object.assign({}, app, {
@@ -1324,6 +1621,7 @@ function applyChapelBuff(buff, ds) {
 const PLAYER_PREP_BUDGET = 6;
 
 function beginPrep(npc) {
+  stopCastle();
   G.activeNpc = npc;
   G.prep = { budget: PLAYER_PREP_BUDGET, chosen: [] };
   stopWorld();
@@ -2270,6 +2568,16 @@ window.addEventListener('load', () => {
     btn.addEventListener('pointerleave', clrDir);
   });
 
+  // — Castle D-pad
+  document.querySelectorAll('#castle-dpad .dpbtn').forEach(btn => {
+    const dir = btn.dataset.cdir;
+    const setDir = () => { G.castle.moveDir = dir; };
+    const clrDir = () => { if (G.castle.moveDir === dir) G.castle.moveDir = null; };
+    btn.addEventListener('pointerdown', setDir);
+    btn.addEventListener('pointerup',   clrDir);
+    btn.addEventListener('pointerleave', clrDir);
+  });
+
   // — Keyboard
   const K_MAP = {
     ArrowUp:'n', ArrowDown:'s', ArrowLeft:'w', ArrowRight:'e',
@@ -2280,6 +2588,10 @@ window.addEventListener('load', () => {
       G.world.moveDir = K_MAP[e.key];
       e.preventDefault();
     }
+    if (K_MAP[e.key] && G.screen === 'castle') {
+      G.castle.moveDir = K_MAP[e.key];
+      e.preventDefault();
+    }
     if (e.key === 'm' || e.key === 'M') {
       if (G.screen === 'world') openAtlas('world');
       else if (G.screen === 'atlas' && G.atlasFrom === 'world' && G.currentRegion) {
@@ -2288,12 +2600,13 @@ window.addEventListener('load', () => {
     }
   });
   window.addEventListener('keyup', e => {
-    if (K_MAP[e.key] && G.world.moveDir === K_MAP[e.key])
-      G.world.moveDir = null;
+    if (K_MAP[e.key] && G.world.moveDir  === K_MAP[e.key]) G.world.moveDir  = null;
+    if (K_MAP[e.key] && G.castle.moveDir === K_MAP[e.key]) G.castle.moveDir = null;
   });
 
   // — Castle
   document.getElementById('btn-castle-back').onclick = () => {
+    stopCastle();
     G.castleContext = null;
     setScreen('world');
     startWorld();
@@ -2341,7 +2654,8 @@ window.addEventListener('load', () => {
 
   // — Resize
   window.addEventListener('resize', () => {
-    if (G.screen === 'world') resizeWCan();
-    if (G.screen === 'duel')  resizeDuelCanvas();
+    if (G.screen === 'world')  resizeWCan();
+    if (G.screen === 'castle') resizeCastleCan();
+    if (G.screen === 'duel')   resizeDuelCanvas();
   });
 });
