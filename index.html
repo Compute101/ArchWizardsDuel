@@ -74,7 +74,7 @@
   </div>
 
   <!-- CASTLE EXPLORATION -->
-  <div class="screen" data-screen="castle">
+  <div class="screen screen-fill" data-screen="castle">
     <div class="castle-header">
       <div id="castle-title" class="castle-title">Castle</div>
       <button class="castle-back-btn" id="btn-castle-back">← Exit</button>
@@ -91,8 +91,19 @@
         <span class="castle-hud-val" id="castle-hud-mana-val"></span>
       </div>
     </div>
-    <div id="castle-grid" class="castle-grid"></div>
+    <canvas id="castle-canvas"></canvas>
     <div id="castle-room-panel" class="castle-panel hidden"></div>
+    <div class="dpad" id="castle-dpad">
+      <div class="dpad-inner">
+        <button class="dpbtn" data-cdir="n">▲</button>
+        <div class="dpad-row">
+          <button class="dpbtn" data-cdir="w">◀</button>
+          <div class="dpad-c"></div>
+          <button class="dpbtn" data-cdir="e">▶</button>
+        </div>
+        <button class="dpbtn" data-cdir="s">▼</button>
+      </div>
+    </div>
   </div>
 
   <!-- CONTINGENCY PREP -->
